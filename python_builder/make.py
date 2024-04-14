@@ -203,7 +203,6 @@ class Make:
         logging.debug(command2)
         p = Popen(command2, stdin=PIPE, stdout=PIPE, stderr=STDOUT,
                   close_fds=True, cwd=self.__build_path, env=env)
-
         p.wait()
 
         # return the output of the make command only a little bit more nicer
