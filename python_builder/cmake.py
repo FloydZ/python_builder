@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
+""" wrapper around `cmake`"""
 import logging
 import tempfile
 import re
-from os.path import exists
+import os
 from subprocess import Popen, PIPE, STDOUT
 from pathlib import Path
 from typing import Union
-
 from parse_cmake import parsing
 
 from .make import Make
-from .common import Target
+from common import Target, check_if_file_or_path_containing, run_file
 
 
 class CMake:
@@ -19,64 +19,82 @@ class CMake:
     """
     CMD = "cmake"
 
-    def __init__(self, file: str, source_path: str="", cmake: str=""):
+    def __init__(self, cmake_file: Union[str, Path],
+                 build_path: Union[str, Path] = "",
+                 cmake_bin: str = ""):
         """
-        :param file: FULL path to the cmake file
-        :param source_path: path to the source. 
-                NOTE: can be empty, then the class assumes that the source is
-                in the same path as the CMakeLists.txt
+        :param cmake_file: can be one of the following:
+            - relative or absolute path to a `Makefile`
+            - relative of absolute path to a directory containing a `Makefile`
+            the `path` can be a `str` or `Path`
+        :param build_path:
+            path where the binary should be generated. If not passed
+            as an argument a random temp path will be chosen
+        :param cmake_bin: path to the `cmake` executable
         """
-        self.cmake = CMake.CMD
-        if cmake:
-            self.cmake = cmake
+        self.__error = False
+        self.make = Make.CMD
+        if cmake_bin:
+            CMake.CMD = cmake_bin
 
-        if not exists(file):
-            logging.error("cmake file does not exist")
+        cmake_file = check_if_file_or_path_containing(cmake_file, "CMakeLists.txt")
+        if not cmake_file:
+            self.__error = True
+            logging.error("CMakeLists.txt not available")
             return
 
         # that's the full path to the makefile (including the name of the makefile)
-        self.file = file
-        # that's only the name of the makefile
-        self.makefile_name = Path(file).name
-        # only the path of the makefile
-        self.path = Path(file).parent
-        # path of the source
-        self.source_path = self.path if len(source_path) == 0 else source_path
+        self.__cmakefile: Path = Path(os.path.abspath(cmake_file))
 
-        self.build_path = tempfile.TemporaryDirectory().name
+        # that's only the name of the makefile
+        self.__cmakefile_name: str = self.__cmakefile.name
+
+        # only the path of the makefile
+        self.__path: Path = self.__cmakefile.parent
+
+        # build path
+        if build_path:
+            self.__build_path: Path = build_path if isinstance(build_path, Path) else Path(build_path)
+        else:
+            t = tempfile.gettempdir()
+            self.__build_path = Path(t)
+
+        # how many threads are used to build a target
+        self.__threads = 1
 
         self.__targets = []
-        data = open(file).read()
-        self.cmakefile = parsing.parse(data)
-        for bla in self.cmakefile:
+
+        cmake_data = open(cmake_file).read()
+        self.__internal_cmakefile = parsing.parse(cmake_data)
+        for bla in self.__internal_cmakefile:
             try:
-                if bla.name == "add_library":
-                    self.__targets.append(bla.body[0].contents)
-                if bla.name == "add_executable":
-                    self.__targets.append(bla.body[0].contents)
-            except:
-                pass
-        
-        # build the cmake project
-        cmd = [self.cmake, '-S', self.source_path, "-B", self.build_path, "-G Unix Makefiles"]
+                if bla.name == "add_library" or bla.name == "add_executable":
+                    name = bla.body[0].contents
+                    t = Target(name, os.path.join(self.__build_path, name), [],
+                               self.build, self.run)
+                    self.__targets.append(t)
+            except Exception as e:
+                self.__error = True
+                logging.error("could not parse %s", cmake_file)
+                return
+
+        # generate the cmake project
+        cmd = [CMake.CMD, '-S', self.__path, "-B", self.__build_path]
         logging.debug(cmd)
         p = Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True)
         p.wait()
         if p.returncode != 0:
-            logging.error("couldnt create the cmake project: %d", p.stdout.read())
-            return 
-
-        # after we created the cmake directories, create the Makefile
-        self.make = Make(self.build_path + "/Makefile")
-        return 
+            self.__error = True
+            logging.error("couldn't create the cmake project: %d", p.stdout.read())
+            return
 
     def available(self) -> bool:
         """
-        return a boolean value depeneding on cmake is available on the machine or not.
+        return a boolean value depending on cmake is available on the machine or not.
         NOTE: this function will check wether the given command in the constructor
         is available or not. 
         """
-        cmd = [self.cmake, '--version']
+        cmd = [CMake.CMD, '--version']
         logging.debug(cmd)
         p = Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True)
         p.wait()
@@ -86,12 +104,26 @@ class CMake:
 
     def targets(self) -> list[Target]:
         """
-        TODO unfinished
-
-        returns a list of possible targets that are defined in the given 
+        returns a list of possible targets that are defined in the given
         CMake file.
         """
+        if self.__error:
+            logging.error("error is present, cannot return anything")
+            return []
         return self.__targets
+
+    def target(self, name: str) -> Union[Target, None]:
+        """
+        :param name: name of the executable/binary/library
+        :return: the target with the name `name`
+        """
+        if self.is_valid_target(name):
+            return None
+        for t in self.targets():
+            if t.name() == name:
+                return t
+        # should never be reached
+        return None
 
     def is_valid_target(self, target: Union[str, Target]) -> bool:
         """
@@ -104,30 +136,40 @@ class CMake:
 
         return False
 
-    def build(self, target: str, add_flags: str, flags=""):
+    def build(self, target: Target, add_flags: str = "", flags: str = "") ->bool :
         """
-
         :param target:
         :param add_flags:
         :param flags
         """
-        return self.make.build(target, add_flags, flags)
+        cmd = [CMake.CMD, '--build', self.__build_path]
+        logging.debug(cmd)
+        p = Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True)
+        p.wait()
 
-    def run(self, cmd: str):
-        """
-        """
-        raise NotImplementedError
+        data = p.stdout.readlines()
+        data = [str(a).replace("b'", "")
+                .replace("\\n'", "")
+                .lstrip() for a in data]
 
-    def compare(self, cmds: [str]):
+        print(data)
+        if p.returncode != 0:
+            logging.error("couldnt build project: %s", data)
+            return False
+
+        target.is_build()
+        return True
+
+    def run(self, target: Target):
         """
         """
-        raise NotImplementedError
+        return run_file(target.build_path())
 
     def __version__(self):
         """
             returns the version of the installed/given `cmake`
         """
-        cmd = [self.cmake, "--version"]
+        cmd = [CMake.CMD, "--version"]
         p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
         p.wait()
 

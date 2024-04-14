@@ -63,6 +63,7 @@ class Target:
 
     def run(self):
         """ """
+        assert self.__build
         if not self.__run_function:
             logging.error("no build function")
             return False

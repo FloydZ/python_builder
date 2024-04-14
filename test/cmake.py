@@ -5,7 +5,18 @@ from python_builder.cmake import CMake
 
 def test_cmake_runner():
     c = CMake("test/cmake/CMakeLists.txt")
-    print(c.available())
-    print(c.__version__())
-    print(c.targets())
-    print(c.build("simple", ""))
+    assert c.available()
+    assert c.__version__()
+    assert c.targets()
+    assert len(c.targets()) == 1
+
+
+def test_cmake_runner():
+    c = CMake("test/cmake/CMakeLists.txt")
+    assert c.available()
+    assert c.__version__()
+    assert c.targets()
+    assert len(c.targets()) == 1
+    t = c.target("simple")
+    assert c.build(t, "")
+    t.run()

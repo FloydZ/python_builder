@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+""" wrapper around `make` """
 import logging
 import os.path
 from subprocess import Popen, PIPE, STDOUT
@@ -28,13 +29,13 @@ class Make:
             the `path` can be a `str` or `Path`
         :param build_path:
             path where the binary should be generated. If not passed
-            as an argument a random temp path will be choosen
-        :param make_cmd: path to the make dile
+            as an argument a random temp path will be chosen
+        :param make_cmd: path to the `make` executable
         """
         self.__error = False
         self.make = Make.CMD
         if make_cmd:
-            self.make = make_cmd
+            Make.CMD = make_cmd
 
         makefile = check_if_file_or_path_containing(makefile, "Makefile")
         if not makefile:
@@ -210,7 +211,6 @@ class Make:
         data = [str(a).replace("b'", "")
                       .replace("\\n'", "")
                       .lstrip() for a in data]
-        print(data)
         if p.returncode != 0:
             logging.error("ERROR Build %d: %s", p.returncode, data)
             return False
