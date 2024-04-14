@@ -18,7 +18,8 @@ class Target:
                  build_path: Union[str, Path],
                  build_commands: [str],
                  build_function: Callable = None,
-                 run_function: Callable = None):
+                 run_function: Callable = None,
+                 *args, **kwargs):
         """
         :param name:
         :param build_path:
@@ -36,6 +37,9 @@ class Target:
 
         self.__build_function = build_function
         self.__run_function = run_function
+
+        for k, v in kwargs.items():
+            self.__dict__[k] = v
 
     def build_commands(self):
         return self.__build_commands

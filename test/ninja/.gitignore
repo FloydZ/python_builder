@@ -1,1 +1,4 @@
 .ninja_log
+.ninja_deps
+build_ninja/
+simple

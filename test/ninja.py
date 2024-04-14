@@ -5,9 +5,19 @@ from python_builder.ninja import Ninja
 
 
 def test_ninja_runner():
-    m = Ninja("test/ninja/ninja.build")
-    print(m.available())
-    print(m.__version__())
-    for target in m.targets():
-        print(str(target))
-    print(m.build("simple", ""))
+    n = Ninja("test/ninja/build.ninja")
+    assert n.available()
+    assert n.__version__()
+    assert n.targets()
+
+
+def test_ninja_build():
+    n = Ninja("test/ninja/build.ninja")
+    assert n.available()
+    assert n.__version__()
+    assert n.targets()
+    t = n.target("simple")
+    assert t
+    assert t.build()
+    assert n.build(t)
+
