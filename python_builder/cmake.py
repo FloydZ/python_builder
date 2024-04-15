@@ -10,10 +10,10 @@ from typing import Union
 from parse_cmake import parsing
 
 from .make import Make
-from common import Target, check_if_file_or_path_containing, run_file
+from common import Target, Builder, check_if_file_or_path_containing,  inject_env
 
 
-class CMake:
+class CMake(Builder):
     """
     This class wraps the functionality of `CMake`.
     """
@@ -32,7 +32,7 @@ class CMake:
             as an argument a random temp path will be chosen
         :param cmake_bin: path to the `cmake` executable
         """
-        self.__error = False
+        super().__init__()
         self.make = Make.CMD
         if cmake_bin:
             CMake.CMD = cmake_bin
@@ -62,8 +62,6 @@ class CMake:
         # how many threads are used to build a target
         self.__threads = 1
 
-        self.__targets = []
-
         cmake_data = open(cmake_file).read()
         self.__internal_cmakefile = parsing.parse(cmake_data)
         for bla in self.__internal_cmakefile:
@@ -72,69 +70,35 @@ class CMake:
                     name = bla.body[0].contents
                     t = Target(name, os.path.join(self.__build_path, name), [],
                                self.build, self.run)
-                    self.__targets.append(t)
+                    self._targets.append(t)
             except Exception as e:
                 self.__error = True
-                logging.error("could not parse %s", cmake_file)
+                logging.error("could not parse %s %s", cmake_file, e)
                 return
 
         # generate the cmake project
         cmd = [CMake.CMD, '-S', self.__path, "-B", self.__build_path]
         logging.debug(cmd)
-        p = Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True)
-        p.wait()
-        if p.returncode != 0:
-            self.__error = True
-            logging.error("couldn't create the cmake project: %d", p.stdout.read())
-            return
+        with Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True) as p:
+            p.wait()
+            if p.returncode != 0:
+                self.__error = True
+                logging.error("couldn't create the cmake project: %d", p.stdout.read())
+                return
 
     def available(self) -> bool:
         """
         return a boolean value depending on cmake is available on the machine or not.
-        NOTE: this function will check wether the given command in the constructor
-        is available or not. 
+        NOTE: this function will check whether the given command in the constructor
+        is available or not.
         """
         cmd = [CMake.CMD, '--version']
         logging.debug(cmd)
-        p = Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True)
-        p.wait()
-        if p.returncode != 0:
-            return False
+        with Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True) as p:
+            p.wait()
+            if p.returncode != 0:
+                return False
         return True
-
-    def targets(self) -> list[Target]:
-        """
-        returns a list of possible targets that are defined in the given
-        CMake file.
-        """
-        if self.__error:
-            logging.error("error is present, cannot return anything")
-            return []
-        return self.__targets
-
-    def target(self, name: str) -> Union[Target, None]:
-        """
-        :param name: name of the executable/binary/library
-        :return: the target with the name `name`
-        """
-        if self.is_valid_target(name):
-            return None
-        for t in self.targets():
-            if t.name() == name:
-                return t
-        # should never be reached
-        return None
-
-    def is_valid_target(self, target: Union[str, Target]) -> bool:
-        """
-        :param target: the string or `Target` to check if its exists
-        """
-        name = target if type(target) is str else target.name
-        for t in self.targets():
-            if name == t.name:
-                return True
-
-        return False
 
     def build(self, target: Target, add_flags: str = "", flags: str = "") ->bool :
         """
@@ -143,50 +107,51 @@ class CMake:
         :param flags
         """
         cmd = [CMake.CMD, '--build', self.__build_path]
+
+        # set flags
+        env = os.environ.copy()
+        inject_env(env, "CFLAGS", add_flags, flags)
+        inject_env(env, "CXXFLAGS", add_flags, flags)
+
         logging.debug(cmd)
-        p = Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True)
-        p.wait()
+        with Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True) as p:
+            p.wait()
 
-        data = p.stdout.readlines()
-        data = [str(a).replace("b'", "")
-                .replace("\\n'", "")
-                .lstrip() for a in data]
+            data = p.stdout.readlines()
+            data = [str(a).replace("b'", "")
+                    .replace("\\n'", "")
+                    .lstrip() for a in data]
 
-        print(data)
-        if p.returncode != 0:
-            logging.error("couldnt build project: %s", data)
-            return False
+            print(data)
+            if p.returncode != 0:
+                logging.error("couldnt build project: %s", data)
+                return False
 
         target.is_build()
         return True
-
-    def run(self, target: Target):
-        """
-        """
-        return run_file(target.build_path())
 
     def __version__(self):
         """
             returns the version of the installed/given `cmake`
         """
         cmd = [CMake.CMD, "--version"]
-        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-        p.wait()
+        with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT) as p:
+            p.wait()
 
-        data = p.stdout.readlines()
-        data = [str(a).replace("b'", "")
-                      .replace("\\n'", "")
-                      .lstrip() for a in data]
+            data = p.stdout.readlines()
+            data = [str(a).replace("b'", "")
+                          .replace("\\n'", "")
+                          .lstrip() for a in data]
 
-        if p.returncode != 0:
-            logging.error(cmd, "not available: %s", data)
-            return None
+            if p.returncode != 0:
+                logging.error(cmd, "not available: %s", data)
+                return None
 
-        assert len(data) > 1
-        data = data[0]
-        ver = re.findall(r'\d.\d+.\d', data)
-        assert len(ver) == 1
-        return ver[0]
+            assert len(data) > 1
+            data = data[0]
+            ver = re.findall(r'\d.\d+.\d', data)
+            assert len(ver) == 1
+            return ver[0]
 
     def __str__(self):
         return "cmake runner"

@@ -7,17 +7,16 @@ from typing import List, Union
 from subprocess import Popen, PIPE, STDOUT
 from pathlib import Path
 
-from common import Target, run_file
+from common import Target, Builder, inject_env
 
 
-class Compile_Commands:
+class Compile_Commands(Builder):
     """
     wrapper for the compile_commands.json file
     """
 
     def __init__(self, file: Union[str, Path],
                  build_path: Union[str, Path] = ""):
-
         """
         :param file: can be one of the following:
             - relative or absolute path to a `Makefile`
@@ -27,7 +26,7 @@ class Compile_Commands:
             path where the binary should be generated. If not passed
             as an argument a random temp path will be chosen
         """
-        self.__error = False
+        super().__init__()
 
         # that's the full path to the makefile (including the name of the makefile)
         self.__file = file if isinstance(file, Path) else Path(os.path.abspath(file))
@@ -45,10 +44,6 @@ class Compile_Commands:
             t = tempfile.gettempdir()
             self.__build_path = Path(t)
 
-        # how many threads are used to build a target
-        self.__threads = 1
-
-        self.__targets = []
         try:
             j = json.load(open(file))
         except Exception as e:
@@ -64,44 +59,7 @@ class Compile_Commands:
             tmp = Target(name, os.path.join(self.__build_path, name), args,
                          self.build, self.run,
                          source_path=source_path)
-            self.__targets.append(tmp)
-
-    def targets(self) -> List:
-        """
-        return a list of targets to compiler
-        """
-        if self.__error:
-            logging.error("error is present, cannot return anything")
-            return []
-
-        return self.__targets
-
-    def target(self, name: str) -> Union[Target, None]:
-        """
-        :return the target with the name `name`
-        """
-        if self.is_valid_target(name):
-            return None
-        for t in self.targets():
-            if t.name() == name:
-                return t
-        # should never be reached
-        return None
-
-    def is_valid_target(self, target: Union[str, Target]) -> bool:
-        """
-        :param target: the string or `Target` to check if its exists
-        """
-        if self.__error:
-            logging.error("error is present, cannot return anything")
-            return False
-
-        name = target if type(target) is str else target.name
-        for t in self.targets():
-            if name == t.name:
-                return True
-
-        return False
+            self._targets.append(tmp)
 
     def available(self):
         """
@@ -111,29 +69,33 @@ class Compile_Commands:
 
     def build(self, target: Target, add_flags: str = "", flags: str = ""):
         """
-        TODO flags
         assumes that cmd is a target
         return  True on success,
                 False on error
         """
+        assert isinstance(target, Target)
+        if self._error:
+            return False
+
+        # set flags
+        env = os.environ.copy()
+        inject_env(env, "CFLAGS", add_flags, flags)
+        inject_env(env, "CXXFLAGS", add_flags, flags)
+
         tmp_build_path = target.source_path
         cmd = target.build_commands()
 
         logging.debug(cmd)
-        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT,
-                  close_fds=True, cwd=tmp_build_path)
-        p.wait()
-        data = p.stdout.readlines()
-        data = [str(a).replace("b'", "")
-                .replace("\\n'", "")
-                .lstrip() for a in data]
-        if p.returncode != 0:
-            logging.error("could not build %s %s", cmd, data)
-            return False
+        with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT,
+                   close_fds=True, cwd=tmp_build_path) as p:
+            p.wait()
+            data = p.stdout.readlines()
+            data = [str(a).replace("b'", "")
+                    .replace("\\n'", "")
+                    .lstrip() for a in data]
+            if p.returncode != 0:
+                logging.error("could not build %s %s", cmd, data)
+                return False
 
-        # TODO copy the file back to the original build dir
-        return True
-
-    def run(self, target: Target) -> list[str]:
-        """ """
-        return run_file(target.build_path())
+            # TODO copy the file back to the original build dir
+            return True

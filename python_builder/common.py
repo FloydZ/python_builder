@@ -19,7 +19,7 @@ class Target:
                  build_commands: [str],
                  build_function: Callable = None,
                  run_function: Callable = None,
-                 *args, **kwargs):
+                 **kwargs):
         """
         :param name:
         :param build_path:
@@ -41,13 +41,23 @@ class Target:
         for k, v in kwargs.items():
             self.__dict__[k] = v
 
-    def build_commands(self):
+    def build_commands(self) -> [str]:
+        """
+        :return: a list of str commands which can be executed
+                via cli to build the target
+        """
         return self.__build_commands
 
     def build_path(self):
+        """
+        :return: the final output path of the binary
+        """
         return self.__build_path
 
     def name(self):
+        """
+        :return: the name of the output binary/target
+        """
         return self.__name
 
     def is_build(self):
@@ -66,12 +76,76 @@ class Target:
         return self.__build_function(self)
 
     def run(self):
-        """ """
+        """
+        execute the build executable.
+        :return: STDOUT of the binary
+        """
         assert self.__build
         if not self.__run_function:
             logging.error("no build function")
             return False
         return self.__run_function(self)
+
+
+class Builder:
+    """
+    wrapper class of all the different project builders
+    """
+    def __init__(self):
+        self._error = False
+        self._targets = []
+
+        # how many threads are used to build a target
+        self._threads = 1
+
+    def threads(self, t: int):
+        """ set the number of threads to build a target """
+        if t < 1:
+            logging.error("wrong thread number")
+            return self
+
+        self._threads = 1
+        return self
+
+    def run(self, target: Target):
+        """
+        runs the target
+        """
+        return run_file(target.build_path())
+
+    def targets(self) -> list[Target]:
+        """
+        returns a list of possible targets that are defined in the given
+        CMake file.
+        """
+        if self._error:
+            logging.error("error is present, cannot return anything")
+            return []
+        return self._targets
+
+    def target(self, name: str) -> Union[Target, None]:
+        """
+        :param name: name of the executable/binary/library
+        :return: the target with the name `name`
+        """
+        if self.is_valid_target(name):
+            return None
+        for t in self.targets():
+            if name in t.name():
+                return t
+        # should never be reached
+        return None
+
+    def is_valid_target(self, target: Union[str, Target]) -> bool:
+        """
+        :param target: the string or `Target` to check if its exists
+        """
+        name = target if type(target) is str else target.name
+        for t in self.targets():
+            if name == t.name:
+                return True
+
+        return False
 
 
 def check_if_file_or_path_containing(n: Union[str, Path],
@@ -122,15 +196,15 @@ def run_file(file: Union[str, Path]) -> list[str]:
     assert os.path.isfile(file)
 
     cmd = [file]
-    p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-    p.wait()
-    # we are note
+    with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT) as p:
+        p.wait()
+        # we are note
 
-    data = p.stdout.readlines()
-    data = [str(a).replace("b'", "")
-            .replace("\\n'", "")
-            .lstrip() for a in data]
-    return data
+        data = p.stdout.readlines()
+        data = [str(a).replace("b'", "")
+                .replace("\\n'", "")
+                .lstrip() for a in data]
+        return data
 
 
 def inject_env(env: dict, var: str, add_flags: str = "", flags: str = ""):

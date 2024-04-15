@@ -7,10 +7,10 @@ from typing import Union
 import re
 import tempfile
 from pathlib import Path
-from common import Target, check_if_file_or_path_containing, run_file
+from common import Target, Builder, check_if_file_or_path_containing, inject_env
 
 
-class Ninja:
+class Ninja(Builder):
     """
     Abstraction of a Makefile
     """
@@ -25,7 +25,7 @@ class Ninja:
         :param ninja_cmd: path to the ninja binary. If nothing set the default:
             `ninja` will be used.
         """
-        self.__error = False
+        super().__init__()
         self.ninja = Ninja.CMD
         if ninja_cmd:
             self.ninja = ninja_cmd
@@ -52,11 +52,6 @@ class Ninja:
             t = tempfile.gettempdir()
             self.__build_path = Path(t)
 
-        # how many threads are used to build a target
-        self.__threads = 1
-
-        self.__targets = []
-
         command1 = [self.ninja, "-C", self.path, "-t", "targets"]
 
         # first clear the target
@@ -80,7 +75,7 @@ class Ninja:
             tmp = Target(target, os.path.join(self.__build_path, target), [],
                          build_function=self.build, run_function=self.run,
                          tmp_out_file=target)
-            self.__targets.append(tmp)
+            self._targets.append(tmp)
 
     def available(self):
         """
@@ -97,52 +92,6 @@ class Ninja:
             return False
         return True
 
-    def targets(self) -> list[Target]:
-        """
-        returns the possible targets it finds in the given Makefile `file`.
-        """
-        if self.__error:
-            logging.error("error is present, cannot return anything")
-            return []
-
-        return self.__targets
-
-    def target(self, name: str) -> Union[Target, None]:
-        """
-        :return the target with the name `name`
-        """
-        if self.is_valid_target(name):
-            return None
-        for t in self.targets():
-            if name in t.name():
-                return t
-        # should never be reached
-        return None
-
-    def is_valid_target(self, target: Union[str, Target]) -> bool:
-        """
-        :param target: the string or `Target` to check if its exists
-        """
-        if self.__error:
-            logging.error("error is present, cannot return anything")
-            return False
-
-        name = target if type(target) is str else target.name
-        for t in self.targets():
-            if name == t.name:
-                return True
-
-        return False
-
-    def threads(self, t: int):
-        """ set the number of threads to build a target """
-        if t < 1:
-            logging.error("wrong thread number")
-            return
-
-        self.__threads = 1
-        return self
-
     def build(self, target: Target, add_flags: str = "", flags: str = ""):
         """
         TODO flags
@@ -150,30 +99,33 @@ class Ninja:
         :param add_flags:
         :param flags
         """
-        if self.__error:
+        if self._error:
             return False
         cmd = [Ninja.CMD, "-C", str(self.path), target.name()]
+
+        env = os.environ.copy()
+
+        # set flags
+        inject_env(env, "CFLAGS", add_flags, flags)
+        inject_env(env, "CXXFLAGS", add_flags, flags)
+
         logging.debug(cmd)
-        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT,
-                  close_fds=True, cwd=self.__build_path)
-        p.wait()
+        with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT,
+                   close_fds=True, cwd=self.__build_path) as p:
+            p.wait()
 
-        # return the output of the make command only a little bit more nicer
-        data = p.stdout.readlines()
-        data = [str(a).replace("b'", "")
-                .replace("\\n'", "")
-                .lstrip() for a in data]
-        if p.returncode != 0:
-            logging.error("ERROR Build %d: %s", p.returncode, data)
-            return False
+            # return the output of the make command only a little bit more nicer
+            data = p.stdout.readlines()
+            data = [str(a).replace("b'", "")
+                    .replace("\\n'", "")
+                    .lstrip() for a in data]
+            if p.returncode != 0:
+                logging.error("ERROR Build %d: %s", p.returncode, data)
+                return False
 
-        # TODO copy back to outpath
-        target.is_build()
-        return True
-
-    def run(self, target: Target):
-        """ """
-        return run_file(target.build_path())
+            # TODO copy back to outpath
+            target.is_build()
+            return True
 
     def __version__(self):
         """
@@ -199,6 +151,6 @@ class Ninja:
         return ver[0]
 
     def __str__(self):
-        return "make runner"
+        return "ninja runner"
 
 

@@ -10,10 +10,10 @@ import re
 import tempfile
 from pathlib import Path
 from pymake._pymake import parse_makefile_aliases
-from common import Target, check_if_file_or_path_containing, run_file, inject_env
+from common import Target, Builder, check_if_file_or_path_containing, inject_env
 
 
-class Make:
+class Make(Builder):
     """
     Abstraction of a Makefile
     """
@@ -32,14 +32,14 @@ class Make:
             as an argument a random temp path will be chosen
         :param make_cmd: path to the `make` executable
         """
-        self.__error = False
+        super().__init__()
         self.make = Make.CMD
         if make_cmd:
             Make.CMD = make_cmd
 
         makefile = check_if_file_or_path_containing(makefile, "Makefile")
         if not makefile:
-            self.__error = True
+            self._error = True
             logging.error("Makefile not available")
             return
 
@@ -59,10 +59,6 @@ class Make:
             t = tempfile.gettempdir()
             self.__build_path = Path(t)
 
-        # how many threads are used to build a target
-        self.__threads = 1
-
-        self.__targets = []
         # __commands contains all targets
         # while __default_command contains the name of the Target
         # which is build if only `make` is typed into the console
@@ -73,7 +69,7 @@ class Make:
             tmp = Target(k, join(self.__path, k), self.__commands[k],
                          build_function=self.build,
                          run_function=self.run)
-            self.__targets.append(tmp)
+            self._targets.append(tmp)
 
     def available(self) -> bool:
         """
@@ -88,52 +84,6 @@ class Make:
         if p.returncode != 0:
             return False
         return True
-
-    def targets(self) -> list[Target]:
-        """
-        returns the possible targets it finds in the given Makefile `file`.
-        """
-        if self.__error:
-            logging.error("error is present, cannot return anything")
-            return []
-
-        return self.__targets
-
-    def target(self, name: str) -> Union[Target, None]:
-        """
-        :return the target with the name `name`
-        """
-        if self.is_valid_target(name):
-            return None
-        for t in self.targets():
-            if t.name() == name:
-                return t
-        # should never be reached
-        return None
-
-    def is_valid_target(self, target: Union[str, Target]) -> bool:
-        """
-        :param target: the string or `Target` to check if its exists
-        """
-        if self.__error:
-            logging.error("error is present, cannot return anything")
-            return False
-
-        name = target if type(target) is str else target.name
-        for t in self.targets():
-            if name == t.name:
-                return True
-
-        return False
-
-    def threads(self, t: int):
-        """ set the number of threads to build a target """
-        if t < 1:
-            logging.error("wrong thread number")
-            return
-
-        self.__threads = 1
-        return self
 
     def build(self, target: Target, add_flags: str = "", flags: str = ""):
         """
@@ -152,6 +102,8 @@ class Make:
         :param flags
         """
         assert isinstance(target, Target)
+        if self._error:
+            return False
 
         # TOOD auslagern in eigene fkt und checken das es die immer gibt
         command1 = [self.make, "clean"] if self.__makefile == "" else [self.make, "-f", self.__makefile_name, "clean"]
@@ -177,7 +129,7 @@ class Make:
 
         # add threads
         command2.append("-j")
-        command2.append(str(self.__threads))
+        command2.append(str(self._threads))
 
         # add the path to the makefile
         command2.append("-f")
@@ -203,10 +155,6 @@ class Make:
 
         target.is_build()
         return True
-
-    def run(self, target: Target) -> list[str]:
-        """ """
-        return run_file(target.build_path())
 
     def __version__(self):
         """
