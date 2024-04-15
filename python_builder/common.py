@@ -131,3 +131,19 @@ def run_file(file: Union[str, Path]) -> list[str]:
             .replace("\\n'", "")
             .lstrip() for a in data]
     return data
+
+
+def inject_env(env: dict, var: str, add_flags: str = "", flags: str = ""):
+    """"""
+    if add_flags == "" and flags == "":
+        return
+
+    if flags != "":
+        env[var] = flags
+    else:
+        # append flags
+        if add_flags != "":
+            if var not in env.keys():
+                env[var] = add_flags
+            else:
+                env[var] += add_flags

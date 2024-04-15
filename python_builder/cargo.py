@@ -7,9 +7,9 @@ import json
 import os.path
 from subprocess import Popen, PIPE, STDOUT
 from typing import Union
-from os.path import isfile, join
+from os.path import join
 from pathlib import Path
-from common import Target, check_if_file_or_path_containing, run_file
+from common import Target, check_if_file_or_path_containing, run_file, inject_env
 
 
 class Cargo:
@@ -156,12 +156,15 @@ class Cargo:
 
     def build(self, target: Target, add_flags: str = "", flags: str = ""):
         """
-
+        these flags are injected into `RUSTFLAGS`
         :param target: to build
         :param add_flags:
         :param flags
         """
         assert isinstance(target, Target)
+
+        env = os.environ.copy()
+        inject_env(env, "RUSTFLAGS", add_flags, flags)
 
         cmd = [Cargo.CMD, "build", "--"+target.kind, target.name()]
         logging.debug(cmd)

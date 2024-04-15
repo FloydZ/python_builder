@@ -10,7 +10,7 @@ import re
 import tempfile
 from pathlib import Path
 from pymake._pymake import parse_makefile_aliases
-from common import Target, check_if_file_or_path_containing, run_file
+from common import Target, check_if_file_or_path_containing, run_file, inject_env
 
 
 class Make:
@@ -170,21 +170,8 @@ class Make:
         env = os.environ.copy()
 
         # set flags
-        if flags != "":
-            env["CFLAGS"] = flags
-            env["CXXFLAGS"] = flags
-        else:
-            # append flags
-            if add_flags != "":
-                if "CLFAGS" not in env.keys():
-                    env["CFLAGS"] = add_flags
-                else:
-                    env["CFLAGS"] += add_flags
-
-                if "CXXLFAGS" not in env.keys():
-                    env["CXXFLAGS"] = add_flags
-                else:
-                    env["CXXFLAGS"] += add_flags
+        inject_env(env, "CFLAGS", add_flags, flags)
+        inject_env(env, "CXXFLAGS", add_flags, flags)
 
         command2 = [self.make, target.name(), "-B"]
 

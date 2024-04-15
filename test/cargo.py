@@ -28,7 +28,7 @@ def test_cargo_build():
     t = m.target("my_benchmark")
     assert t
     assert m.build(t, "")
-    assert m.build(t, "-O3")
+    assert m.build(t, "-C target-feature=+avx2")
 
 
 def test_cargo_target_build():
