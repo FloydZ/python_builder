@@ -22,7 +22,9 @@ jobs:
       run: |
         sudo apt-get install -y autoconf automake libtool pkg-config
         python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install pylint
+        pip install -e .
 
     - name: Analysing the code with pylint
       run: pylint $(git ls-files '*.py')

@@ -5,6 +5,7 @@ from python_builder.ninja import Ninja
 
 
 def test_ninja_runner():
+    """ if this fails something fishy is going on """
     n = Ninja("test/ninja/build.ninja")
     assert n.available()
     assert n.__version__()
@@ -12,6 +13,7 @@ def test_ninja_runner():
 
 
 def test_ninja_build():
+    """ tests the .build() function """
     n = Ninja("test/ninja/build.ninja")
     assert n.available()
     assert n.__version__()
@@ -20,4 +22,3 @@ def test_ninja_build():
     assert t
     assert t.build()
     assert n.build(t)
-

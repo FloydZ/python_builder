@@ -10,7 +10,7 @@ from typing import Union
 from parse_cmake import parsing
 
 from .make import Make
-from common import Target, Builder, check_if_file_or_path_containing,  inject_env
+from .common import Target, Builder, check_if_file_or_path_containing, inject_env
 
 
 class CMake(Builder):
@@ -54,7 +54,8 @@ class CMake(Builder):
 
         # build path
         if build_path:
-            self.__build_path: Path = build_path if isinstance(build_path, Path) else Path(build_path)
+            self.__build_path: Path = build_path if isinstance(build_path, Path)\
+                else Path(build_path)
         else:
             t = tempfile.gettempdir()
             self.__build_path = Path(t)
@@ -154,4 +155,5 @@ class CMake(Builder):
             return ver[0]
 
     def __str__(self):
+        """ print only the name """
         return "cmake runner"

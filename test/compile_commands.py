@@ -4,6 +4,7 @@ from python_builder.compile_commands import Compile_Commands
 
 
 def test_compile_commands_runner():
+    """ if this fails something fishy is going on """
     c = Compile_Commands("test/compile_commands.json")
     assert c.available()
     assert c.targets()
@@ -11,6 +12,7 @@ def test_compile_commands_runner():
 
 
 def test_compile_commands_build():
+    """ test the .build() function """
     c = Compile_Commands("test/compile_commands.json")
     assert c.available()
     assert c.targets()
@@ -19,4 +21,3 @@ def test_compile_commands_build():
     t = c.target("simple")
     assert t.build()
     assert c.build(t)
-

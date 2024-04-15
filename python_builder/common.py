@@ -208,7 +208,11 @@ def run_file(file: Union[str, Path]) -> list[str]:
 
 
 def inject_env(env: dict, var: str, add_flags: str = "", flags: str = ""):
-    """"""
+    """ simple helper function: if `flags` is set
+        env[var] = flags
+    if `add_flags` set
+        env[var] += flags
+    """
     if add_flags == "" and flags == "":
         return
 

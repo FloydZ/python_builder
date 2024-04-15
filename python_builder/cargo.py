@@ -37,7 +37,7 @@ class Cargo(Builder):
 
         file = check_if_file_or_path_containing(file, "Cargo.toml")
         if not file:
-            self.__error = True
+            self._error = True
             logging.error("Cargo.toml not available")
             return
 
@@ -67,7 +67,7 @@ class Cargo(Builder):
             data = p.stdout.read()
             if p.returncode != 0:
                 logging.error("ERROR Build %d: %s", p.returncode, data)
-                self.__error = True
+                self._error = True
 
             jtmp = json.loads(data)
             targets = jtmp["targets"]
@@ -89,6 +89,7 @@ class Cargo(Builder):
         with Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True) as p:
             p.wait()
             if p.returncode != 0:
+                self._error = True
                 return False
         return True
 
@@ -125,14 +126,14 @@ class Cargo(Builder):
             target.is_build()
         return True
 
-    def __version__(self):
+    def __version__(self) -> Union[str, None]:
         """ returns the version of the installed/given `cargo` """
         cmd = [Cargo.CMD, "--version"]
         p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
         p.wait()
         if p.returncode != 0:
-            logging.error(cmd, "not available: {0}"
-                          .format(p.stdout.read()))
+            self._error = True
+            logging.error("cargo not available")
             return None
 
         data = p.stdout.readlines()

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """ install script """
 import os
-import sys
 from setuptools import setup
 from setuptools.command.install import install
 from setuptools.command.develop import develop
