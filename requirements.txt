@@ -1,4 +1,3 @@
-pathlib
 pytest
 pylint
 parse_cmake
