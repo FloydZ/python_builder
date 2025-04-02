@@ -10,7 +10,8 @@ import re
 import tempfile
 from pathlib import Path
 from pymake._pymake import parse_makefile_aliases
-from common import Target, Builder, check_if_file_or_path_containing, inject_env
+
+from .common import Target, Builder, check_if_file_or_path_containing, inject_env
 
 
 class Make(Builder):

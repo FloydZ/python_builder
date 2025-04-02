@@ -7,23 +7,25 @@ let
     ipython
     pip
     setuptools
-    virtualenv
+    virtualenvwrapper
     wheel
-
-    pytest
-    pylint
-    numpy 
-    # NOTE: not in nixpkgs
-    #parse_cmake
-    #py-make
   ]);
 
   # add the needed packages here
   extraBuildInputs = with pkgs; [
     myPython
+    pythonPackages.numpy
+    pythonPackages.pytest
+    pythonPackages.pylint
+    # NOTE: not in nixpkgs
+    #parse_cmake
+    #py-make
+
+    # needed for running tests
     gcc
-    z3
-    antlr4
+    clang 
+    gnumake
+    cmake
     jetbrains.pycharm-community
   ] ++ (lib.optionals pkgs.stdenv.isLinux ([
   ]));

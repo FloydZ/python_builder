@@ -7,7 +7,7 @@ from typing import List, Union
 from subprocess import Popen, PIPE, STDOUT
 from pathlib import Path
 
-from common import Target, Builder, inject_env
+from .common import Target, Builder, inject_env
 
 
 class Compile_Commands(Builder):

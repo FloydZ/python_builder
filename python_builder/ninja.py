@@ -7,7 +7,8 @@ from typing import Union
 import re
 import tempfile
 from pathlib import Path
-from common import Target, Builder, check_if_file_or_path_containing, inject_env
+
+from .common import Target, Builder, check_if_file_or_path_containing, inject_env
 
 
 class Ninja(Builder):
@@ -30,6 +31,7 @@ class Ninja(Builder):
         if ninja_cmd:
             self.ninja = ninja_cmd
 
+        assert ninjafile
         ninjafile = check_if_file_or_path_containing(ninjafile, "build.ninja")
         if not ninjafile:
             self.__error = True

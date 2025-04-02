@@ -38,8 +38,7 @@ let
         fi
         source ./$VENV/bin/activate
         export PYTHONPATH=$PYTHONPATH:`pwd`/$VENV/${myPython.sitePackages}/
-        # pip install -e .
-        ./build.sh
+        pip install -e .
     '';
   };
 in shell
