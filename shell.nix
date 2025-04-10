@@ -26,6 +26,9 @@ let
     clang 
     gnumake
     cmake
+
+    # dev helpers
+    ruff
     jetbrains.pycharm-community
   ] ++ (lib.optionals pkgs.stdenv.isLinux ([
   ]));

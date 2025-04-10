@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" wrapper around `cargo` """
+"""wrapper around `cargo`"""
+
 import logging
 import re
 import tempfile
@@ -16,11 +17,15 @@ class Cargo(Builder):
     """
     Abstraction of a Makefile
     """
+
     CMD = "cargo"
 
-    def __init__(self, file: Union[str, Path],
-                 build_path: Union[str, Path] = "",
-                 cargo_cmd: str = "cargo"):
+    def __init__(
+        self,
+        file: Union[str, Path],
+        build_path: Union[str, Path] = "",
+        cargo_cmd: str = "cargo",
+    ):
         """
         :param file: can be one of the following:
             - relative or absolute path to a `Makefile`
@@ -52,7 +57,9 @@ class Cargo(Builder):
 
         # build path
         if build_path:
-            self.__build_path = build_path if isinstance(build_path, Path) else Path(build_path)
+            self.__build_path = (
+                build_path if isinstance(build_path, Path) else Path(build_path)
+            )
         else:
             t = tempfile.gettempdir()
             self.__build_path = Path(t)
@@ -60,10 +67,11 @@ class Cargo(Builder):
         cmd = [Cargo.CMD, "read-manifest"]
 
         logging.debug(cmd)
-        with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT,
-                   close_fds=True, cwd=self.__path) as p:
+        with Popen(
+            cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True, cwd=self.__path
+        ) as p:
             p.wait()
-
+            assert p.stdout
             data = p.stdout.read()
             if p.returncode != 0:
                 logging.error("ERROR Build %d: %s", p.returncode, data)
@@ -73,9 +81,14 @@ class Cargo(Builder):
             targets = jtmp["targets"]
             for t in targets:
                 # TODO build path not available?
-                target = Target(t["name"], join(self.__path, "target/release/TODO"), [],
-                                build_function=self.build, run_function=self.run,
-                                kind=t["kind"][0])
+                target = Target(
+                    t["name"],
+                    join(self.__path, "target/release/TODO"),
+                    [],
+                    build_function=self.build,
+                    run_function=self.run,
+                    kind=t["kind"][0],
+                )
                 self._targets.append(target)
 
     def available(self) -> bool:
@@ -84,7 +97,7 @@ class Cargo(Builder):
         NOTE: this function will check whether the given command in the constructor
         is available.
         """
-        cmd = [Cargo.CMD, '--version']
+        cmd = [Cargo.CMD, "--version"]
         logging.debug(cmd)
         with Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True) as p:
             p.wait()
@@ -107,17 +120,16 @@ class Cargo(Builder):
         env = os.environ.copy()
         inject_env(env, "RUSTFLAGS", add_flags, flags)
 
-        cmd = [Cargo.CMD, "build", "--"+target.kind, target.name()]
+        cmd = [Cargo.CMD, "build", "--" + target.kind, target.name()]
         logging.debug(cmd)
-        with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT,
-                   close_fds=True, cwd=self.__path) as p:
+        with Popen(
+            cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True, cwd=self.__path
+        ) as p:
             p.wait()
 
             # return the output of the make command only a little bit more nicer
             data = p.stdout.readlines()
-            data = [str(a).replace("b'", "")
-                    .replace("\\n'", "")
-                    .lstrip() for a in data]
+            data = [str(a).replace("b'", "").replace("\\n'", "").lstrip() for a in data]
             if p.returncode != 0:
                 logging.error("ERROR Build %d: %s", p.returncode, data)
                 return False
@@ -127,7 +139,7 @@ class Cargo(Builder):
         return True
 
     def __version__(self) -> Union[str, None]:
-        """ returns the version of the installed/given `cargo` """
+        """returns the version of the installed/given `cargo`"""
         cmd = [Cargo.CMD, "--version"]
         p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
         p.wait()
@@ -137,13 +149,11 @@ class Cargo(Builder):
             return None
 
         data = p.stdout.readlines()
-        data = [str(a).replace("b'", "")
-                .replace("\\n'", "")
-                .lstrip() for a in data]
+        data = [str(a).replace("b'", "").replace("\\n'", "").lstrip() for a in data]
 
         assert len(data) == 1
         data = data[0]
-        ver = re.findall(r'\d.\d+.\d?', data)
+        ver = re.findall(r"\d.\d+.\d?", data)
         assert len(ver) == 1
         return ver[0]
 

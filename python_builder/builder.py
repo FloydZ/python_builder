@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-""" main class """
+"""main class"""
+
 import os
 from typing import Union
 from pathlib import Path
@@ -10,11 +11,12 @@ from . import Cargo, CMake, Compile_Commands, Make, Ninja
 
 def find_build_system(f: Union[str, Path]) -> Union[Builder, None]:
     """
+    Simply finds a build system in the given path or file
     :param f: can be a path
     """
 
     def check_file(f: Path):
-        """ helper function """
+        """helper function"""
         name = f.name
         if name == "Makefile":
             return Make(name)
@@ -43,4 +45,3 @@ def find_build_system(f: Union[str, Path]) -> Union[Builder, None]:
                 return t
 
     return None
-
