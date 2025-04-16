@@ -47,7 +47,7 @@ setup(
         'develop': CustomDevelopCommand,
         'egg_info': CustomEggInfoCommand,
     },
-    package_data={'': ['deps/']},
+    package_data={'': ['deps/', 'python_builder/']},
     requires=[],
     classifiers=[
         "Development Status :: 4 - Beta",

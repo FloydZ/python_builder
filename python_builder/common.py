@@ -2,7 +2,7 @@
 """ contains all functions/classes which are needed by all builders """
 import logging
 import os.path
-from typing import Union, Callable
+from typing import Union, Callable, List
 from pathlib import Path
 from subprocess import Popen, PIPE, STDOUT
 
@@ -16,12 +16,12 @@ class Target:
     """
     def __init__(self, name: str,
                  build_path: Union[str, Path],
-                 build_commands: [str],
-                 build_function: Callable = None,
-                 run_function: Callable = None,
+                 build_commands: List[str],
+                 build_function: Union[Callable, None] = None,
+                 run_function: Union[Callable, None] = None,
                  **kwargs):
         """
-        :param name:
+        :param name: TODO
         :param build_path:
         :param build_commands:
         :param build_function:
@@ -41,7 +41,7 @@ class Target:
         for k, v in kwargs.items():
             self.__dict__[k] = v
 
-    def build_commands(self) -> [str]:
+    def build_commands(self) -> List[str]:
         """
         :return: a list of str commands which can be executed
                 via cli to build the target
@@ -66,6 +66,9 @@ class Target:
     def __str__(self):
         return str(self.__dict__)
 
+    def __repr__(self) -> str:
+        return str(self.__dict__)
+
     def build(self):
         """
         NOTE: no additional flags are passed
@@ -75,14 +78,14 @@ class Target:
             return False
         return self.__build_function(self)
 
-    def run(self):
+    def run(self) -> Union[bool, str]:
         """
         execute the build executable.
         :return: STDOUT of the binary
         """
         assert self.__build
         if not self.__run_function:
-            logging.error("no build function")
+            logging.error("no run function")
             return False
         return self.__run_function(self)
 
@@ -125,22 +128,31 @@ class Builder:
 
     def target(self, name: str) -> Union[Target, None]:
         """
+        NOTE: this function fallbacks to the `in` operator if no exact match 
+            is found.
         :param name: name of the executable/binary/library
         :return: the target with the name `name`
         """
         if self.is_valid_target(name):
             return None
+
+        for t in self.targets():
+            if name == t.name():
+                return t
+        # fallback
         for t in self.targets():
             if name in t.name():
                 return t
+
         # should never be reached
         return None
 
     def is_valid_target(self, target: Union[str, Target]) -> bool:
         """
         :param target: the string or `Target` to check if its exists
+        :return true/false: if the target name is valid or not
         """
-        name = target if type(target) is str else target.name
+        name = target if isinstance(target, str) else target.name
         for t in self.targets():
             if name == t.name:
                 return True

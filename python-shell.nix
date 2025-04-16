@@ -38,8 +38,7 @@ let
         fi
         source ./$VENV/bin/activate
         export PYTHONPATH=$PYTHONPATH:`pwd`/$VENV/${myPython.sitePackages}/
-        pip install -r requirements.txt
-        i
+        ./build.sh
         pip install -e .
     '';
   };
