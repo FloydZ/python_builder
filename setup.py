@@ -41,7 +41,7 @@ setup(
     url="https://github.com/FloydZ/python_builder",
     package_dir={"": "python_builder"},
     keywords=["build systems"],
-    install_requires=["setuptools",],
+    install_requires=["setuptools", "py-make", "parse_cmake"],
     cmdclass={
         'install': CustomInstallCommand,
         'develop': CustomDevelopCommand,
