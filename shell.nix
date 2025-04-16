@@ -1,21 +1,14 @@
 with import <nixpkgs> { };
 { pkgs ? import <nixpkgs> { } }:
 let 
-  myPython = pkgs.python3;
-  pythonPackages = pkgs.python3Packages;
+  myPython = pkgs.python311;
+  pythonPackages = pkgs.python311Packages;
   pythonWithPkgs = myPython.withPackages (pythonPkgs: with pythonPkgs; [
     ipython
     pip
     setuptools
     virtualenv
     wheel
-
-    pytest
-    pylint
-    numpy 
-    # NOTE: not in nixpkgs
-    #parse_cmake
-    #py-make
   ]);
 
   # add the needed packages here
@@ -25,6 +18,13 @@ let
     z3
     antlr4
     jetbrains.pycharm-community
+
+    pythonPackages.pytest
+    pythonPackages.pylint
+    pythonPackages.numpy 
+    # NOTE: not in nixpkgs
+    #parse_cmake
+    #py-make
   ] ++ (lib.optionals pkgs.stdenv.isLinux ([
   ]));
 in
