@@ -26,6 +26,8 @@ let
     clang 
     gnumake
     cmake
+    bazel
+    ninja
 
     # dev helpers
     ruff
