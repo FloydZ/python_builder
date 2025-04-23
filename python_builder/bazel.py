@@ -4,19 +4,14 @@ import logging
 import tempfile
 import re
 import os
-import sys
 import glob
 import itertools, functools
 from subprocess import Popen, PIPE, STDOUT
 from pathlib import Path
-from typing import Union
+from typing import Union, List, Any
 
 from .common import Target, Builder, check_if_file_or_path_containing, inject_env
 
-
-colours = ['\033[32m', '\033[34m']
-default_colour = '\033[0m'
-colour_strlen = len(default_colour)
 regex_rule = '\(\\n.*'
 
 
@@ -26,11 +21,11 @@ class Bazel(Builder):
     """
     CMD = "bazel"
 
-    def __init__(self, bazel_binary: Union[str, Path],
+    def __init__(self, bazel_path: Union[str, Path],
                  build_path: Union[str, Path] = "",
-                 cmake_bin: str = ""):
+                 bazel_binary: str = ""):
         """
-        :param bazel_binary: can be one of the following:
+        :param bazel_path: can be one of the following:
             - relative or absolute path to a `Makefile`
             - relative of absolute path to a directory containing a `Makefile`
             the `path` can be a `str` or `Path`
@@ -40,38 +35,46 @@ class Bazel(Builder):
         :param cmake_bin: path to the `cmake` executable
         """
         super().__init__()
-        if cmake_bin:
+        if bazel_binary:
             Bazel.CMD = bazel_binary
 
-        self.__build_path = build_path
+        self.target_choices = ['cc', 'py']
+        self.rule_choices = ['binary', 'library', 'test']
+        self.__bazel_path = os.path.abspath(bazel_path)
 
+        # TODO allow custom rules
+        target = ""
+        rule = ""
+        self.__all_choices = Bazel.filter_choices(self.target_choices, self.rule_choices, target, rule)
+        self.__build_files = Bazel.find_build_files(self.__bazel_path)
+        assert self.__build_files
 
-    def available(self) -> bool:
-        """
-        return a boolean value depending on cmake is available on the machine or not.
-        NOTE: this function will check whether the given command in the constructor
-        is available or not.
-        """
-        cmd = [Bazel.CMD, '--version']
-        logging.debug(cmd)
-        with Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True) as p:
-            p.wait()
-            if p.returncode != 0:
-                return False
-        return True
+        # build path
+        if build_path:
+            self.__build_path: Path = build_path if isinstance(build_path, Path) \
+                else Path(build_path)
+        else:
+            t = tempfile.gettempdir()
+            self.__build_path = Path(t)
 
-    def build(self, target: Target, add_flags: str = "", flags: str = "") ->bool :
+        # list of the form:
+        #   [ // main: hello - world, hello - world],
+        #   [ // main: hello - greet, hello - greet],
+        self.__targets = Bazel.bzlst(self.__build_files, self.__bazel_path, self.__all_choices)
+        assert self.__targets
+        self._targets = [Target(o[1], self.__build_path, [o[1]], self.build, self.run) for o in self.__targets]
+
+    def build(self, target: Target, add_flags: str = "", flags: str = "") -> bool :
         """
-        :param target:
-        :param add_flags:
+        :param target: TODO
+        :param add_flags: TODO not supported
         :param flags
+        :return true or false
         """
-        cmd = [Bazel.CMD, '--build', self.__build_path]
+        # run bazel sync first, to make sure that all dependencies are there.
+        self.__run(["sync"])
 
-        # set flags
-        env = os.environ.copy()
-        inject_env(env, "CFLAGS", add_flags, flags)
-        inject_env(env, "CXXFLAGS", add_flags, flags)
+        cmd = [Bazel.CMD, 'build', target.build_commands()[0]]
 
         logging.debug(cmd)
         with Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True) as p:
@@ -91,9 +94,45 @@ class Bazel(Builder):
         target.is_build()
         return True
 
+    def run(self, target: Target):
+        """
+        runs the target
+        """
+        cmd = [Bazel.CMD, 'run', target.build_commands()[0]]
+        return self.__run(cmd)
+
+    def __run(self, cmd: List[str]):
+        """
+        TODO everywhere where popen is used should be this function be used + move it to `common.py`
+        :param cmd: a single command represented as a list of strings
+        """
+        with Popen(
+                cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True, cwd=self.__bazel_path
+        ) as p:
+            p.wait()
+            assert p.stdout
+            data = p.stdout.read()
+            if p.returncode != 0:
+                logging.error("ERROR execution %d: %s", p.returncode, data)
+                self._error = True
+
+    def available(self) -> bool:
+        """
+        return a boolean value depending on cmake is available on the machine or not.
+        NOTE: this function will check whether the given command in the constructor
+        is available or not.
+        """
+        cmd = [Bazel.CMD, '--version']
+        logging.debug(cmd)
+        with Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True) as p:
+            p.wait()
+            if p.returncode != 0:
+                return False
+        return True
+
     def __version__(self):
         """
-            returns the version of the installed/given `cmake`
+            returns the version of the installed/given `bazel`
         """
         cmd = [Bazel.CMD, "--version"]
         with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT) as p:
@@ -108,7 +147,7 @@ class Bazel(Builder):
                 logging.error(cmd, "not available: %s", data)
                 return None
 
-            assert len(data) > 1
+            assert len(data) == 1
             data = data[0]
             ver = re.findall(r'\d.\d+.\d', data)
             assert len(ver) == 1
@@ -117,14 +156,7 @@ class Bazel(Builder):
     def __str__(self):
         """ print only the name """
         return "bazel runner"
-    
-    @staticmethod
-    def find_build_files(path: str):
-        """
-        :param path
-        """
-        return glob.iglob(path + '/**/BUILD', recursive=True)
-    
+
     @staticmethod
     def extract_rule_name(rule_list):
         """
@@ -142,41 +174,73 @@ class Bazel(Builder):
     @staticmethod
     def extract_specific_rule(rule_type, 
                               content, 
-                              option_idx, 
                               target_path):
         """
         :param rule_type:
         :param content:
+        :param target_path:
         """
-        colour_attrib = lambda x, i: colours[i % len(colours)] + x + default_colour
-    
         # TODO: find a better way to lex+parse, currently hacky!
         rules = re.findall('{}{}'.format(rule_type, regex_rule), content)
         rule_names = Bazel.extract_rule_name(rules)
-    
-        # rule_fmt_disp = [output_format(x, colour_attrib(rule_type[:6], option_idx), target_path) for x in
-        #                 rule_names] if rule_names else []
         return rule_names
     
     @staticmethod
     def extract_bazel_rules(filename,
-                            ws_dir, 
-                            options):
+                            ws_dir,
+                            filtered_choices: List[str]):
         """
-        :param filename:
-        :param ws_dir:
-        :param filename:
+        :param filename: path to a `BUILD` file
+        :param ws_dir: working dir
+        :param filtered_choices: something like:
+            ['cc_binary', 'cc_library', ... ]
+        :return [
+            # build command         target name
+            [//main:hello-world, hello-world],
+            [//main:hello-greet, hello-greet],
+        ]
         """
-        content = open(filename, 'r').read()
-        target_path = '/{}'.format(filename.split(ws_dir)[1])
-        output_display = [Bazel.extract_specific_rule(opt, content, i, target_path) for i, opt in enumerate(options)]
-        return itertools.chain(*output_display)
-    
+        # remove the `BUILD` from `filename`
+        dirname =os.path.dirname(filename)
+        # generate: `//main:hello-world`, which is something like the build commands
+        target_path = '/{}:'.format(dirname.split(ws_dir)[1])
+        with open(filename, 'r') as f:
+            content = f.read()
+            out = [Bazel.extract_specific_rule(opt, content, target_path) for i, opt in enumerate(filtered_choices)]
+            out = [o for o in out if len(o) > 0]
+            out = list(itertools.chain(*out))
+            out = [[target_path+o, o] for o in out]
+            return out
+
     @staticmethod
-    def filter_choices(target_choices,
-                       type_choices, 
-                       user_target, 
-                       user_type):
+    def bzlst(build_files: List[Any],
+              ws_dir: str,
+              filtered_choices: List[str]):
+        """
+        :param build_files: list/generator of `BUILD` files
+        :param ws_dir: working dir
+        :param filtered_choices: something like:
+            ['cc_binary', 'cc_library', ... ]
+        :return [
+
+        ]
+        """
+        output_str = [Bazel.extract_bazel_rules(f, ws_dir, filtered_choices) for f in build_files]
+        flatten_lst = list(itertools.chain(*output_str))
+        return flatten_lst
+
+    @staticmethod
+    def find_build_files(path: str):
+        """
+        :param path: path to the bazel build directory
+        """
+        return glob.iglob(path + '/**/BUILD', recursive=True)
+
+    @staticmethod
+    def filter_choices(target_choices: List[str],
+                       type_choices: List[str],
+                       user_target: str,
+                       user_type: str):
         """
         :param target_choices:
         :param type_choices:
@@ -189,21 +253,5 @@ class Bazel(Builder):
         for choice in [user_target, user_type]:
             if choice:
                 all_choices = filter(lambda x: choice in x, all_choices)
-    
+        all_choices = list(all_choices)
         return all_choices
-    
-    @staticmethod
-    def bzlst(build_files,
-              ws_dir,
-              filtered_choices):
-        """
-        :param build_files
-        :param ws_dir
-        :param filtered_choices
-        """
-        output_str = [Bazel.extract_bazel_rules(f, ws_dir, filtered_choices) for f in build_files]
-        flatten_lst = itertools.chain(*output_str)
-    
-        # compare function needed because the string is prefixed with colour codes
-        cmp_fn = lambda x, y: -1 if x[colour_strlen + 1:] <= y[colour_strlen + 1:] else 1
-        return sorted(flatten_lst, key=functools.cmp_to_key(cmp_fn))

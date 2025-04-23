@@ -22,3 +22,8 @@ def test_ninja_build():
     assert t
     assert t.build()
     assert n.build(t)
+
+
+if __name__ == "__main__":
+    test_ninja_runner()
+    test_ninja_build()

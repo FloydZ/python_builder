@@ -22,3 +22,8 @@ def test_cmake_build():
     t = c.target("simple")
     assert c.build(t, "")
     t.run()
+
+
+if __name__ == "__main__":
+    test_cmake_runner()
+    test_cmake_build()

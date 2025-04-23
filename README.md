@@ -3,6 +3,7 @@ Python_Builder:
 
 This library wraps common build systems and let you control
 them via python. Supported build systems are
+- `bazel`
 - `make`
 - `CMake`
 - `ninja`

@@ -41,3 +41,10 @@ def test_cargo_target_build():
     assert t
     assert t.build()
     t.run()
+
+
+if __name__ == "__main__":
+    test_cargo()
+    test_cargo_path()
+    test_cargo_build()
+    test_cargo_target_build()

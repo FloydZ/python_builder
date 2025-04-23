@@ -58,8 +58,8 @@ def test_make_parse():
 
 
 if __name__ == "__main__":
-    #test_make()
-    #test_make_path()
-    #test_make_build()
-    #test_make_target_build_run()
+    test_make()
+    test_make_path()
+    test_make_build()
+    test_make_target_build_run()
     test_make_parse()
