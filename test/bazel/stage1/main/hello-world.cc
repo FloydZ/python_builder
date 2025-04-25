@@ -12,7 +12,11 @@ void print_localtime() {
 }
 
 int main(int argc, char** argv) {
+#ifdef KEK
+  std::string who = "kek";
+#else 
   std::string who = "world";
+#endif
   if (argc > 1) {
     who = argv[1];
   }

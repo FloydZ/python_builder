@@ -26,7 +26,7 @@ let
     clang 
     gnumake
     cmake
-    bazel
+    bazel_7
     ninja
 
     # dev helpers

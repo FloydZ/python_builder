@@ -110,7 +110,7 @@ class Builder:
         self._threads = 1
         return self
 
-    def run(self, target: Target):
+    def run(self, target: Target) -> List[str]:
         """
         runs the target
         """

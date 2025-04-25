@@ -66,7 +66,7 @@ class Make(Builder):
         self.__commands, self.__default_command = parse_makefile_aliases(self.__makefile)
         
         for k in self.__commands.keys():
-            # TODO __path is not always correct
+            # TODO __path is not always correct, why not?
             tmp = Target(k, join(self.__path, k), self.__commands[k],
                          build_function=self.build,
                          run_function=self.run)
@@ -113,6 +113,7 @@ class Make(Builder):
         logging.debug(command1)
         p = Popen(command1, stdout=PIPE, stderr=STDOUT, cwd=self.__build_path)
         p.wait()
+        assert p.stdout
         if p.returncode != 0:
             # this is not a catastrophic failure
             logging.warning("make clean %d: %s", p.returncode, p.stdout.read())
@@ -146,6 +147,7 @@ class Make(Builder):
         p.wait()
 
         # return the output of the make command only a little bit more nicer
+        assert p.stdout
         data = p.stdout.readlines()
         data = [str(a).replace("b'", "")
                       .replace("\\n'", "")
@@ -194,7 +196,6 @@ def is_makefile_in_dir(path: str):
     """
     files = [f for f in listdir(path) if isfile(join(path, f))]
     for f in files:
-        print(f)
         if f == "Makefile":
             return Make(path+f)
 

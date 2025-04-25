@@ -84,6 +84,7 @@ class CMake(Builder):
             p.wait()
             if p.returncode != 0:
                 self.__error = True
+                assert p.stdout
                 logging.error("couldn't create the cmake project: %d", p.stdout.read())
                 return
 
@@ -115,9 +116,9 @@ class CMake(Builder):
         inject_env(env, "CXXFLAGS", add_flags, flags)
 
         logging.debug(cmd)
-        with Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True) as p:
+        with Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True, env=env) as p:
             p.wait()
-
+            assert p.stdout
             data = p.stdout.readlines()
             data = [str(a).replace("b'", "")
                     .replace("\\n'", "")
@@ -139,6 +140,7 @@ class CMake(Builder):
         with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT) as p:
             p.wait()
 
+            assert p.stdout
             data = p.stdout.readlines()
             data = [str(a).replace("b'", "")
                           .replace("\\n'", "")

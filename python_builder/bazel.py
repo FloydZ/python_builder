@@ -21,6 +21,11 @@ class Bazel(Builder):
     """
     CMD = "bazel"
 
+    # build_target: //main:hello-world
+    # returns: {"label": "hello-world", "path": "bazel-out/k8-fastbuild/bin/main/hello-world"}
+    get_build_path_cmd = "bazel cquery ${build_target} --output=starlark --starlark:expr='{\"label\": target.label.name, \"path\": target.files.to_list()[0].path}'"
+
+
     def __init__(self, bazel_path: Union[str, Path],
                  build_path: Union[str, Path] = "",
                  bazel_binary: str = ""):
@@ -58,24 +63,35 @@ class Bazel(Builder):
             self.__build_path = Path(t)
 
         # list of the form:
-        #   [ // main: hello - world, hello - world],
-        #   [ // main: hello - greet, hello - greet],
+        #   [ // main: hello-world, hello-world],
+        #   [ // main: hello-greet, hello-greet],
         self.__targets = Bazel.bzlst(self.__build_files, self.__bazel_path, self.__all_choices)
         assert self.__targets
         self._targets = [Target(o[1], self.__build_path, [o[1]], self.build, self.run) for o in self.__targets]
 
-    def build(self, target: Target, add_flags: str = "", flags: str = "") -> bool :
+    def build(self, target: Target,
+              add_flags: Union[str, List[str]] = "",
+              flags: str = "") -> bool :
         """
         :param target: TODO
-        :param add_flags: TODO not supported
-        :param flags
+        :param add_flags: if passed will be appended to the original flags
+        :param flags: if this flag is set, all compiler flags (even the original)
+            ones will be overwritten. TODO not supported
         :return true or false
         """
         # run bazel sync first, to make sure that all dependencies are there.
-        self.__run(["sync"])
+        # self.__run(["sync"])
 
+        # next construct the build command
         cmd = [Bazel.CMD, 'build', target.build_commands()[0]]
 
+        if isinstance(add_flags, str):
+            add_flags = add_flags.split(",")
+
+        for f in add_flags:
+            cmd += [f"--copt={f}"]
+
+        print(cmd)
         logging.debug(cmd)
         with Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True) as p:
             p.wait()
@@ -94,14 +110,14 @@ class Bazel(Builder):
         target.is_build()
         return True
 
-    def run(self, target: Target):
+    def run(self, target: Target) -> List[str]:
         """
         runs the target
         """
         cmd = [Bazel.CMD, 'run', target.build_commands()[0]]
         return self.__run(cmd)
 
-    def __run(self, cmd: List[str]):
+    def __run(self, cmd: List[str]) -> List[str]:
         """
         TODO everywhere where popen is used should be this function be used + move it to `common.py`
         :param cmd: a single command represented as a list of strings
@@ -111,10 +127,16 @@ class Bazel(Builder):
         ) as p:
             p.wait()
             assert p.stdout
-            data = p.stdout.read()
+            data = p.stdout.readlines()
+            data = [str(a).replace("b'", "")
+                    .replace("\\n'", "")
+                    .lstrip() for a in data]
+
             if p.returncode != 0:
-                logging.error("ERROR execution %d: %s", p.returncode, data)
+                logging.error("ERROR execution %d: %s", p.returncode, "\n".join(data))
                 self._error = True
+
+            return data
 
     def available(self) -> bool:
         """
@@ -173,8 +195,7 @@ class Bazel(Builder):
 
     @staticmethod
     def extract_specific_rule(rule_type, 
-                              content, 
-                              target_path):
+                              content):
         """
         :param rule_type:
         :param content:
@@ -206,7 +227,7 @@ class Bazel(Builder):
         target_path = '/{}:'.format(dirname.split(ws_dir)[1])
         with open(filename, 'r') as f:
             content = f.read()
-            out = [Bazel.extract_specific_rule(opt, content, target_path) for i, opt in enumerate(filtered_choices)]
+            out = [Bazel.extract_specific_rule(opt, content) for i, opt in enumerate(filtered_choices)]
             out = [o for o in out if len(o) > 0]
             out = list(itertools.chain(*out))
             out = [[target_path+o, o] for o in out]
