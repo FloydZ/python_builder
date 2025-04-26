@@ -14,7 +14,8 @@ __status__ = "Development"
 
 from .cargo import Cargo
 from .cmake import CMake
-from .compile_commands import Compile_Commands
+from .compile_commands import CompileCommands
 from .make import Make
 from .ninja import Ninja
+from .bazel import Bazel
 from .builder import find_build_system

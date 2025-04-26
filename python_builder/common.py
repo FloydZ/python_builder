@@ -61,6 +61,9 @@ class Target:
         return self.__name
 
     def is_build(self):
+        """
+        flags the Target, that it was build and ready to run
+        """
         self.__build = True
 
     def __str__(self):

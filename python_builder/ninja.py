@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" """
+""" wrapper around ninja """
 import logging
 import os.path
 from subprocess import Popen, PIPE, STDOUT
@@ -8,7 +8,7 @@ import re
 import tempfile
 from pathlib import Path
 
-from .common import Target, Builder, check_if_file_or_path_containing, inject_env
+from .common import Target, Builder, check_if_file_or_path_containing, clean_lines, inject_env
 
 
 class Ninja(Builder):
@@ -58,17 +58,15 @@ class Ninja(Builder):
 
         # first clear the target
         logging.debug(command1)
-        p = Popen(command1, stdout=PIPE, stderr=STDOUT, cwd=self.path)
-        p.wait()
-
-        data = p.stdout.readlines()
-        data = [str(a).replace("b'", "")
-                .replace("\\n'", "")
-                .lstrip() for a in data]
-        if p.returncode != 0:
-            self.__error = True
-            logging.error("could not fetch targets from ninja file: %s", data)
-            return
+        with Popen(command1, stdout=PIPE, stderr=STDOUT, cwd=self.path) as p:
+            p.wait()
+            assert p.stdout
+            data = p.stdout.readlines()
+            data = clean_lines(data)
+            if p.returncode != 0:
+                self.__error = True
+                logging.error("could not fetch targets from ninja file: %s", data)
+                return
 
         for line in data:
             sp = line.split(":")
@@ -88,11 +86,12 @@ class Ninja(Builder):
         """
         cmd = [self.ninja, '--version']
         logging.debug(cmd)
-        p = Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True)
-        p.wait()
-        if p.returncode != 0:
-            return False
-        return True
+        with Popen(cmd, stdout=PIPE, stderr=STDOUT,
+                   universal_newlines=True) as p:
+            p.wait()
+            if p.returncode != 0:
+                return False
+            return True
 
     def build(self, target: Target, add_flags: str = "", flags: str = ""):
         """
@@ -101,7 +100,7 @@ class Ninja(Builder):
         :param add_flags:
         :param flags
         """
-        if self._error:
+        if self.__error:
             return False
         cmd = [Ninja.CMD, "-C", str(self.path), target.name()]
 
@@ -134,17 +133,15 @@ class Ninja(Builder):
             returns the version of the installed/given `cmake`
         """
         cmd = [Ninja.CMD, "--version"]
-        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-        p.wait()
-        if p.returncode != 0:
-            logging.error(cmd, "not available: {0}"
-                          .format(p.stdout.read()))
-            return None
-
-        data = p.stdout.readlines()
-        data = [str(a).replace("b'", "")
-                      .replace("\\n'", "")
-                      .lstrip() for a in data]
+        with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT) as p:
+            p.wait()
+            assert p.stdout
+            data = p.stdout.readlines()
+            data = clean_lines(data)
+            if p.returncode != 0:
+                logging.error(cmd, "not available: {0}"
+                              .format("\n".join(data)))
+                return None
 
         assert len(data) == 1
         data = data[0]
@@ -154,5 +151,3 @@ class Ninja(Builder):
 
     def __str__(self):
         return "ninja runner"
-
-

@@ -33,6 +33,9 @@ class CMake(Builder):
         :param cmake_bin: path to the `cmake` executable
         """
         super().__init__()
+
+        self.__error = False
+
         self.make = Make.CMD
         if cmake_bin:
             CMake.CMD = cmake_bin

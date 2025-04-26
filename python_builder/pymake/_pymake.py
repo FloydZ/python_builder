@@ -1,6 +1,8 @@
+#!/usr/bin/env python3
 """
 pymake helpers
 """
+
 from __future__ import absolute_import
 import configparser
 import io
@@ -20,14 +22,14 @@ RE_MACRO = re.compile(r"\$\(\s*\S+\s*\)")
 
 class PymakeTypeError(TypeError):
     """
+    TypeError
     """
-    pass
 
 
 class PymakeKeyError(KeyError):
     """
+    KeyError
     """
-    pass
 
 
 def parse_makefile_aliases(filepath):
@@ -42,7 +44,7 @@ def parse_makefile_aliases(filepath):
     default_alias  : str
     '''
 
-    with io.open(filepath, mode='r') as fd:
+    with io.open(filepath, mode='r', encoding="utf-8") as fd:
         ini_lines = fd.read().replace('\r\n', '\n').replace('\\\n', '')
         ini_lines = (RE_MAKE_CMD.sub('\t', i) for i in ini_lines.split('\n'))
     # fake section to resemble valid *.ini

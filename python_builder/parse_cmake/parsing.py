@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+CMakeLists parser
+"""
+
 # Copyright 2025- Floyd
 # Copyright 2015 Open Source Robotics Foundation, Inc.
 # Copyright 2013 Willow Garage, Inc.
@@ -107,7 +112,7 @@ def prettify(s, formatting_opts=FormattingOptions()):
     return parse(s).pretty_print(formatting_opts)
 
 
-def parse(s, path='<string>'):
+def parse(s, _='<string>'):
     '''
     Parses a string s in CMakeLists format whose
     contents are assumed to have come from the
@@ -121,6 +126,10 @@ def parse(s, path='<string>'):
 
 
 def strip_blanks(tree):
+    """
+    :param tree:
+    :return File()
+    """
     return File([x for x in tree if not isinstance(x, BlankLine)])
 
 
@@ -187,8 +196,7 @@ def command_to_lines(cmd, formatting_opts, use_multiple_lines=False):
                 # in multi-line formatting mode so that we can choose the best
                 # points to break the line
                 return command_to_lines(cmd, formatting_opts, use_multiple_lines=True)
-            else:
-                end_current_line()
+            end_current_line()
 
         if output.is_first_in_line:
             output.is_first_in_line = False
@@ -210,6 +218,10 @@ def command_to_lines(cmd, formatting_opts, use_multiple_lines=False):
 
 
 def arg_to_str(arg):
+    """
+    :param arg:
+    :return 
+    """
     comment_part = '  ' + '\n'.join(arg.comments) + '\n' if arg.comments else ''
     return arg.contents + comment_part
 

@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+helper to merge lists
+"""
+
 # Copyright 2015 Open Source Robotics Foundation, Inc.
 # Copyright 2013 Willow Garage, Inc.
 #
@@ -14,7 +19,7 @@
 # limitations under the License.
 
 
-def merge_pairs(list, should_merge, merge):
+def merge_pairs(_list, should_merge, merge):
     """
     Merges adjacent elements of list using the function merge
     if they satisfy the predicate should_merge.
@@ -39,15 +44,15 @@ def merge_pairs(list, should_merge, merge):
     """
     ret = []
     i = 0
-    while i < len(list) - 1:
-        a = list[i]
-        b = list[i + 1]
+    while i < len(_list) - 1:
+        a = _list[i]
+        b = _list[i + 1]
         if should_merge(a, b):
             ret.append(merge(a, b))
             i += 2
         else:
             ret.append(a)
             i += 1
-    if i == len(list) - 1:
-        ret.append(list[i])
+    if i == len(_list) - 1:
+        ret.append(_list[i])
     return ret

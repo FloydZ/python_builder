@@ -6,7 +6,7 @@ from typing import Union
 from pathlib import Path
 
 from .common import Builder
-from . import Cargo, CMake, Compile_Commands, Make, Ninja
+from . import Bazel, Cargo, CMake, CompileCommands, Make, Ninja
 
 
 def find_build_system(f: Union[str, Path]) -> Union[Builder, None]:
@@ -25,10 +25,11 @@ def find_build_system(f: Union[str, Path]) -> Union[Builder, None]:
         if name == "Cargo.toml":
             return Cargo(name)
         if name == "compile_commands.json":
-            return Compile_Commands(name)
+            return CompileCommands(name)
         if name == "build.ninja":
             return Ninja(name)
-
+        if name in ["MODULE.bazel", "BUILD"]:
+            return Bazel(name)
         return None
 
     f = Path(os.path.abspath(f))
