@@ -5,14 +5,12 @@ import tempfile
 import re
 import os
 import glob
-import itertools, functools
+import itertools
 from subprocess import Popen, PIPE, STDOUT
 from pathlib import Path
 from typing import Union, List, Any
 
-from .common import Target, Builder, check_if_file_or_path_containing, inject_env
-
-regex_rule = '\(\\n.*'
+from .common import Target, Builder
 
 
 class Bazel(Builder):
@@ -23,7 +21,9 @@ class Bazel(Builder):
 
     # build_target: //main:hello-world
     # returns: {"label": "hello-world", "path": "bazel-out/k8-fastbuild/bin/main/hello-world"}
-    get_build_path_cmd = "bazel cquery ${build_target} --output=starlark --starlark:expr='{\"label\": target.label.name, \"path\": target.files.to_list()[0].path}'"
+    get_build_path_cmd = "bazel cquery ${build_target} --output=starlark "
+    "--starlark:expr='{\"label\": target.label.name, \"path\": target.files."
+    "to_list()[0].path}'"
 
 
     def __init__(self, bazel_path: Union[str, Path],
@@ -50,7 +50,9 @@ class Bazel(Builder):
         # TODO allow custom rules
         target = ""
         rule = ""
-        self.__all_choices = Bazel.filter_choices(self.target_choices, self.rule_choices, target, rule)
+        self.__all_choices = Bazel.filter_choices(self.target_choices,
+                                                  self.rule_choices,
+                                                  target, rule)
         self.__build_files = Bazel.find_build_files(self.__bazel_path)
         assert self.__build_files
 
@@ -67,7 +69,9 @@ class Bazel(Builder):
         #   [ // main: hello-greet, hello-greet],
         self.__targets = Bazel.bzlst(self.__build_files, self.__bazel_path, self.__all_choices)
         assert self.__targets
-        self._targets = [Target(o[1], self.__build_path, [o[1]], self.build, self.run) for o in self.__targets]
+        self._targets = [Target(o[1], self.__build_path,
+                                [o[0]], self.build, self.run)
+            for o in self.__targets]
 
     def build(self, target: Target,
               add_flags: Union[str, List[str]] = "",
@@ -86,23 +90,25 @@ class Bazel(Builder):
         cmd = [Bazel.CMD, 'build', target.build_commands()[0]]
 
         if isinstance(add_flags, str):
-            add_flags = add_flags.split(",")
+            if add_flags == "":
+                add_flags = []
+            else:
+                add_flags = add_flags.split(",")
 
         for f in add_flags:
             cmd += [f"--copt={f}"]
 
-        print(cmd)
         logging.debug(cmd)
-        with Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True) as p:
+        with Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True,
+                   cwd=self.__bazel_path) as p:
             p.wait()
-            
+
             assert p.stdout
             data = p.stdout.readlines()
             data = [str(a).replace("b'", "")
                     .replace("\\n'", "")
                     .lstrip() for a in data]
 
-            print(data)
             if p.returncode != 0:
                 logging.error("couldnt build project: %s", data)
                 return False
@@ -180,36 +186,36 @@ class Bazel(Builder):
         return "bazel runner"
 
     @staticmethod
-    def extract_rule_name(rule_list):
+    def extract_rule_name(rule_list) -> List[str]:
         """
         :param rule_list
         """
-        def _split_rule(x):
+        def _split_rule(x) -> str:
             try:
                 return x.split('"')[1]
             except:
-                pass
-        
+                return ""
+
         result = [_split_rule(x) for x in rule_list]
         return result
 
     @staticmethod
-    def extract_specific_rule(rule_type, 
-                              content):
+    def extract_specific_rule(rule_type,
+                              content) -> List[str]:
         """
         :param rule_type:
         :param content:
         :param target_path:
         """
-        # TODO: find a better way to lex+parse, currently hacky!
+        regex_rule = r'\(\\n.*'
         rules = re.findall('{}{}'.format(rule_type, regex_rule), content)
         rule_names = Bazel.extract_rule_name(rules)
         return rule_names
-    
+
     @staticmethod
     def extract_bazel_rules(filename,
                             ws_dir,
-                            filtered_choices: List[str]):
+                            filtered_choices: List[str]) -> List[List[str]]:
         """
         :param filename: path to a `BUILD` file
         :param ws_dir: working dir
@@ -227,7 +233,8 @@ class Bazel(Builder):
         target_path = '/{}:'.format(dirname.split(ws_dir)[1])
         with open(filename, 'r') as f:
             content = f.read()
-            out = [Bazel.extract_specific_rule(opt, content) for i, opt in enumerate(filtered_choices)]
+            out = [Bazel.extract_specific_rule(opt, content)
+                for _, opt in enumerate(filtered_choices)]
             out = [o for o in out if len(o) > 0]
             out = list(itertools.chain(*out))
             out = [[target_path+o, o] for o in out]
@@ -255,7 +262,7 @@ class Bazel(Builder):
         """
         :param path: path to the bazel build directory
         """
-        return glob.iglob(path + '/**/BUILD', recursive=True)
+        return list(glob.iglob(path + '/**/BUILD', recursive=True))
 
     @staticmethod
     def filter_choices(target_choices: List[str],
@@ -270,7 +277,7 @@ class Bazel(Builder):
         """
         all_choices_tuple = itertools.product(target_choices, type_choices)
         all_choices = ['_'.join(list(x)) for x in all_choices_tuple]
-    
+
         for choice in [user_target, user_type]:
             if choice:
                 all_choices = filter(lambda x: choice in x, all_choices)

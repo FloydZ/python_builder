@@ -89,6 +89,12 @@ class Target:
             return False
         return self.__run_function(self)
 
+    def kind(self) -> str:
+        """
+        :return either ["binary", "library", "test"]
+        """
+        return "TODO"
+
 
 class Builder:
     """
@@ -113,6 +119,8 @@ class Builder:
     def run(self, target: Target) -> List[str]:
         """
         runs the target
+        :param target:
+        :return the output of the shell
         """
         return run_file(target.build_path())
 
@@ -158,6 +166,17 @@ class Builder:
                 return True
 
         return False
+
+
+def clean_lines(lines: List[bytes]) -> List[str]:
+    """
+    :param lines: output of p.stdout.readlines()
+    :return the cleaned lines
+    """
+    lines = [a.decode("utf-8").replace("b'", "")
+                   .replace("\\n'", "")
+                   .lstrip() for a in lines]
+    return lines
 
 
 def check_if_file_or_path_containing(n: Union[str, Path],
@@ -210,8 +229,7 @@ def run_file(file: Union[str, Path]) -> list[str]:
     cmd = [file]
     with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT) as p:
         p.wait()
-        # we are note
-
+        assert p.stdout
         data = p.stdout.readlines()
         data = [str(a).replace("b'", "")
                 .replace("\\n'", "")

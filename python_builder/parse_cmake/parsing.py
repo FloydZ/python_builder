@@ -1,3 +1,4 @@
+# Copyright 2025- Floyd
 # Copyright 2015 Open Source Robotics Foundation, Inc.
 # Copyright 2013 Willow Garage, Inc.
 #
@@ -16,7 +17,7 @@
 from collections import namedtuple
 import re
 
-from parse_cmake import list_utils
+from . import list_utils
 
 QuotedString = namedtuple('QuotedString', 'contents comments')
 _Arg = namedtuple('Arg', 'contents comments')
@@ -71,19 +72,31 @@ class File(list):
 
 
 class Comment(str):
+    """
+    Base class for comments in a cmake file
+    """
     def __repr__(self):
         return 'Comment(' + str(self) + ')'
 
 
 def Arg(contents, comments=None):
+    """
+    TODO
+    """
     return _Arg(contents, comments or [])
 
 
 def Command(name, body, comment=None):
+    """
+    TODO
+    """
     return _Command(name, body, comment)
 
 
 class CMakeParseError(Exception):
+    """
+    TODO
+    """
     pass
 
 
@@ -137,10 +150,16 @@ def compose_lines(tree, formatting_opts):
 
 
 def is_parameter_name_arg(name):
+    """
+    TODO
+    """
     return re.match('^[A-Z_]+$', name) and name not in ['ON', 'OFF']
 
 
 def command_to_lines(cmd, formatting_opts, use_multiple_lines=False):
+    """
+    TODO
+    """
     class output:
         lines = []
         current_line = cmd.name.lower() + '('
@@ -215,10 +234,16 @@ def parse_file(toks):
 
 
 def attach_comments_to_commands(nodes):
+    """
+    TODO
+    """
     return list_utils.merge_pairs(nodes, command_then_comment, attach_comment_to_command)
 
 
 def command_then_comment(a, b):
+    """
+    TODO
+    """
     line_nums_a, thing_a = a
     line_nums_b, thing_b = b
     return (isinstance(thing_a, _Command) and
@@ -227,12 +252,18 @@ def command_then_comment(a, b):
 
 
 def attach_comment_to_command(lnums_command, lnums_comment):
+    """
+    TODO
+    """
     command_lines, command = lnums_command
     _, comment = lnums_comment
     return command_lines, Command(command.name, command.body[:], comment)
 
 
 def parse_command(start_line_num, command_name, toks):
+    """
+    TODO
+    """
     cmd = Command(name=command_name, body=[], comment=None)
     expect('left paren', toks)
     for line_num, (typ, tok_contents) in toks:
@@ -256,6 +287,9 @@ def parse_command(start_line_num, command_name, toks):
 
 
 def expect(expected_type, toks):
+    """
+    TODO
+    """
     line_num, (typ, tok_contents) = next(toks)
     if typ != expected_type:
         msg = 'Expected a %s, but got "%s" at line %s' % (

@@ -128,6 +128,7 @@ class Cargo(Builder):
             p.wait()
 
             # return the output of the make command only a little bit more nicer
+            assert p.stdout
             data = p.stdout.readlines()
             data = [str(a).replace("b'", "").replace("\\n'", "").lstrip() for a in data]
             if p.returncode != 0:
@@ -141,12 +142,13 @@ class Cargo(Builder):
     def __version__(self) -> Union[str, None]:
         """returns the version of the installed/given `cargo`"""
         cmd = [Cargo.CMD, "--version"]
-        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-        p.wait()
-        if p.returncode != 0:
-            self._error = True
-            logging.error("cargo not available")
-            return None
+        with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT) as p:
+            p.wait()
+            assert p.stdout
+            if p.returncode != 0:
+                self._error = True
+                logging.error("cargo not available")
+                return None
 
         data = p.stdout.readlines()
         data = [str(a).replace("b'", "").replace("\\n'", "").lstrip() for a in data]

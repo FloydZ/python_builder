@@ -28,6 +28,7 @@ let
     cmake
     bazel_7
     ninja
+    cargo
 
     # dev helpers
     ruff

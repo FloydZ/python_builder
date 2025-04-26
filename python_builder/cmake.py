@@ -7,7 +7,7 @@ import os
 from subprocess import Popen, PIPE, STDOUT
 from pathlib import Path
 from typing import Union
-from parse_cmake import parsing
+from .parse_cmake import parsing
 
 from .make import Make
 from .common import Target, Builder, check_if_file_or_path_containing, inject_env
@@ -46,9 +46,6 @@ class CMake(Builder):
         # that's the full path to the makefile (including the name of the makefile)
         self.__cmakefile: Path = Path(os.path.abspath(cmake_file))
 
-        # that's only the name of the makefile
-        self.__cmakefile_name: str = self.__cmakefile.name
-
         # only the path of the makefile
         self.__path: Path = self.__cmakefile.parent
 
@@ -60,14 +57,13 @@ class CMake(Builder):
             t = tempfile.gettempdir()
             self.__build_path = Path(t)
 
-        # how many threads are used to build a target
-        self.__threads = 1
+        with open(cmake_file, "r") as f:
+            cmake_data = f.read()
 
-        cmake_data = open(cmake_file).read()
         self.__internal_cmakefile = parsing.parse(cmake_data)
         for bla in self.__internal_cmakefile:
             try:
-                if bla.name == "add_library" or bla.name == "add_executable":
+                if bla.name in ("add_library", "add_executable"):
                     name = bla.body[0].contents
                     t = Target(name, os.path.join(self.__build_path, name), [],
                                self.build, self.run)
@@ -108,6 +104,9 @@ class CMake(Builder):
         :param add_flags:
         :param flags
         """
+        if self.__error:
+            return False
+
         cmd = [CMake.CMD, '--build', self.__build_path]
 
         # set flags

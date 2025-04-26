@@ -22,6 +22,9 @@ from .parsing import parse
 
 
 def main():
+    """
+    TODO remove?
+    """
     # Parse arguments
     parser = argparse.ArgumentParser(description='Pretty-print CMakeLists files.')
     parser.add_argument('files', type=str, nargs='*',

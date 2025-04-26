@@ -19,10 +19,14 @@ RE_MACRO = re.compile(r"\$\(\s*\S+\s*\)")
 
 
 class PymakeTypeError(TypeError):
+    """
+    """
     pass
 
 
 class PymakeKeyError(KeyError):
+    """
+    """
     pass
 
 
