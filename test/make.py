@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """ test make.py """
 from python_builder.make import Make
-import pprint
-from pathlib import Path
+import os
 
 TEST_PATH = "test/make/"
 
@@ -47,14 +46,17 @@ def test_make_target_build_run():
     if ret == False:
         assert ret
 
-def test_make_parse():
-    dir_ = TEST_PATH + "files/"
-    pathlist = Path(dir_).glob('**/*.makefile')
-    for file_ in pathlist:
-        file = str(file_)
-        m = Make(file)
-        assert m.available()
-        assert m.__version__()
+def test_all():
+    """ parser all Makefile test files """
+    dir_ = "test/cmake/files"
+    directory = os.fsencode(dir_)
+    for file in os.listdir(directory):
+        filename = os.fsdecode(file)
+        c = Make(filename)
+        assert c.available()
+        assert c.__version__()
+        for target in c.targets():
+            assert c.build(target)
 
 
 if __name__ == "__main__":
@@ -62,4 +64,4 @@ if __name__ == "__main__":
     test_make_path()
     test_make_build()
     test_make_target_build_run()
-    test_make_parse()
+    test_all()
