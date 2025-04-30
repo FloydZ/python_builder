@@ -2,7 +2,7 @@
 """ contains all functions/classes which are needed by all builders """
 import logging
 import os.path
-from typing import Union, Callable, List
+from typing import Union, Callable, List, Tuple
 from pathlib import Path
 from subprocess import Popen, PIPE, STDOUT
 
@@ -54,7 +54,7 @@ class Target:
         """
         return self.__build_path
 
-    def name(self):
+    def name(self) -> str:
         """
         :return: the name of the output binary/target
         """
@@ -72,7 +72,7 @@ class Target:
     def __repr__(self) -> str:
         return str(self.__dict__)
 
-    def build(self):
+    def build(self) -> bool:
         """
         NOTE: no additional flags are passed
         """
@@ -216,28 +216,41 @@ def check_if_file_or_path_containing(n: Union[str, Path],
     return t[0]
 
 
-def run_file(file: Union[str, Path]) -> list[str]:
+def run_file(file: Union[Path, str],
+             cwd: Union[str,Path] = "") -> Tuple[bool, list[str]]:
     """
     NOTE: this function does non perform any sanity checks
         like checking the return value
     :param file: runs it
+    :param cwd: working directory
     :return list of str of the output
     """
     if isinstance(file, Path):
         file = str(file)
-
     file = os.path.abspath(file)
     assert os.path.isfile(file)
-
     cmd = [file]
-    with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT) as p:
+    return run_cmd(cmd)
+
+
+def run_cmd(cmd: List[str],
+             cwd: Union[str,Path] = "") -> Tuple[bool, list[str]]:
+    """
+    NOTE: this function does non perform any sanity checks
+        like checking the return value
+    :param cmd: runs it
+    :param cwd: working directory
+    :return list of str of the output
+    """
+    if cwd == "":
+        cwd = None
+    with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT,
+               close_fds=True, cwd=cwd) as p:
         p.wait()
         assert p.stdout
         data = p.stdout.readlines()
-        data = [str(a).replace("b'", "")
-                .replace("\\n'", "")
-                .lstrip() for a in data]
-        return data
+        data = clean_lines(data)
+        return p.returncode==0, data
 
 
 def inject_env(env: dict, var: str, add_flags: str = "", flags: str = ""):

@@ -17,16 +17,13 @@ let
     pythonPackages.numpy
     pythonPackages.pytest
     pythonPackages.pylint
-    # NOTE: not in nixpkgs
-    #parse_cmake
-    #py-make
 
     # needed for running tests
     gcc
     clang 
     gnumake
     cmake
-    bazel_7
+    bazel_7 # NOTE: this needed as otherwise the bazel files cannot be parsed
     ninja
     cargo
 

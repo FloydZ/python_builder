@@ -10,7 +10,7 @@ from subprocess import Popen, PIPE, STDOUT
 from pathlib import Path
 from typing import Union, List, Any
 
-from .common import Target, Builder
+from .common import Target, Builder, clean_lines, run_cmd
 
 
 class Bazel(Builder):
@@ -77,7 +77,7 @@ class Bazel(Builder):
               add_flags: Union[str, List[str]] = "",
               flags: str = "") -> bool :
         """
-        :param target: TODO
+        :param target: target to build
         :param add_flags: if passed will be appended to the original flags
         :param flags: if this flag is set, all compiler flags (even the original)
             ones will be overwritten. TODO not supported
@@ -102,13 +102,9 @@ class Bazel(Builder):
         with Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True,
                    cwd=self.__bazel_path) as p:
             p.wait()
-
             assert p.stdout
             data = p.stdout.readlines()
-            data = [str(a).replace("b'", "")
-                    .replace("\\n'", "")
-                    .lstrip() for a in data]
-
+            data = clean_lines(data)
             if p.returncode != 0:
                 logging.error("couldnt build project: %s", data)
                 return False
@@ -121,28 +117,9 @@ class Bazel(Builder):
         runs the target
         """
         cmd = [Bazel.CMD, 'run', target.build_commands()[0]]
-        return self.__run(cmd)
-
-    def __run(self, cmd: List[str]) -> List[str]:
-        """
-        TODO everywhere where popen is used should be this function be used + move it to `common.py`
-        :param cmd: a single command represented as a list of strings
-        """
-        with Popen(
-                cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True, cwd=self.__bazel_path
-        ) as p:
-            p.wait()
-            assert p.stdout
-            data = p.stdout.readlines()
-            data = [str(a).replace("b'", "")
-                    .replace("\\n'", "")
-                    .lstrip() for a in data]
-
-            if p.returncode != 0:
-                logging.error("ERROR execution %d: %s", p.returncode, "\n".join(data))
-                self._error = True
-
-            return data
+        b, ret = run_cmd(cmd, self.__bazel_path)
+        assert b
+        return ret
 
     def available(self) -> bool:
         """
@@ -152,34 +129,20 @@ class Bazel(Builder):
         """
         cmd = [Bazel.CMD, '--version']
         logging.debug(cmd)
-        with Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True) as p:
-            p.wait()
-            if p.returncode != 0:
-                return False
-        return True
+        b, _ = run_cmd(cmd)
+        return b
 
     def __version__(self):
-        """
-            returns the version of the installed/given `bazel`
-        """
+        """ returns the version of the installed/given `bazel` """
         cmd = [Bazel.CMD, "--version"]
-        with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT) as p:
-            p.wait()
-            assert p.stdout
-            data = p.stdout.readlines()
-            data = [str(a).replace("b'", "")
-                          .replace("\\n'", "")
-                          .lstrip() for a in data]
+        b, data = run_cmd(cmd)
+        if not b: return None
 
-            if p.returncode != 0:
-                logging.error(cmd, "not available: %s", data)
-                return None
-
-            assert len(data) == 1
-            data = data[0]
-            ver = re.findall(r'\d.\d+.\d', data)
-            assert len(ver) == 1
-            return ver[0]
+        assert len(data) == 1
+        data = data[0]
+        ver = re.findall(r'\d.\d+.\d', data)
+        assert len(ver) == 1
+        return ver[0]
 
     def __str__(self):
         """ print only the name """
@@ -207,7 +170,7 @@ class Bazel(Builder):
         :param content:
         :param target_path:
         """
-        regex_rule = r'\(\\n.*'
+        regex_rule = '\(\\n.*'
         rules = re.findall('{}{}'.format(rule_type, regex_rule), content)
         rule_names = Bazel.extract_rule_name(rules)
         return rule_names
@@ -262,7 +225,15 @@ class Bazel(Builder):
         """
         :param path: path to the bazel build directory
         """
-        return list(glob.iglob(path + '/**/BUILD', recursive=True))
+        #t = list(glob.iglob(path + '/**/BUILD', recursive=True,
+        #                    follow_symlinks=False))
+        #return t
+        ret = []
+        target_filename = "BUILD"
+        for root, dirs, files in os.walk(path, topdown=True, followlinks=False):
+            if target_filename in files:
+                ret.append(os.path.join(root, target_filename))
+        return ret
 
     @staticmethod
     def filter_choices(target_choices: List[str],

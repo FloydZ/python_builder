@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 from .pymake._pymake import parse_makefile_aliases
 
-from .common import Target, Builder, check_if_file_or_path_containing, clean_lines, inject_env
+from .common import Target, Builder, check_if_file_or_path_containing, clean_lines, inject_env, run_cmd
 
 
 class Make(Builder):
@@ -72,21 +72,6 @@ class Make(Builder):
                          run_function=self.run)
             self._targets.append(tmp)
 
-    def available(self) -> bool:
-        """
-        return a boolean value depending on `make` is available on the machine or not.
-        NOTE: this function will check whether the given command in the constructor
-        is available. 
-        """
-        cmd = [self.make, '--version']
-        logging.debug(cmd)
-        with Popen(cmd, stdout=PIPE, stderr=STDOUT,
-                   universal_newlines=True) as p:
-            p.wait()
-            if p.returncode != 0:
-                return False
-            return True
-
     def build(self, target: Target,
               add_flags: str = "",
               flags: str = "") -> bool:
@@ -100,7 +85,6 @@ class Make(Builder):
         NOTE: this only works if `CFLAGS` or `CXXFLAGS` are part of
         the build command
 
-
         :param target: to build
         :param add_flags:
         :param flags
@@ -109,7 +93,6 @@ class Make(Builder):
         if self._error:
             return False
 
-        # TOOD auslagern in eigene fkt und checken das es die immer gibt
         command1 = [self.make, "clean"] if self.__makefile == "" else \
                     [self.make, "-f", self.__makefile_name, "clean"]
 
@@ -162,20 +145,28 @@ class Make(Builder):
         target.is_build()
         return True
 
+    def available(self) -> bool:
+        """
+        return a boolean value depending on `make` is available on the machine or not.
+        NOTE: this function will check whether the given command in the constructor
+        is available.
+        """
+        cmd = [self.make, '--version']
+        logging.debug(cmd)
+        with Popen(cmd, stdout=PIPE, stderr=STDOUT,
+                   universal_newlines=True) as p:
+            p.wait()
+            if p.returncode != 0:
+                return False
+            return True
+
     def __version__(self) -> Union[str, None]:
         """
             returns the version of the installed/given `cmake`
         """
         cmd = [self.make, "--version"]
-        with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT) as p:
-            p.wait()
-            assert p.stdout
-            data = p.stdout.readlines()
-            data = clean_lines(data)
-            if p.returncode != 0:
-                logging.error(cmd, "not available: {0}"
-                              .format("\n".join(data)))
-                return None
+        b, data = run_cmd(cmd)
+        if not b: return None
 
         assert len(data) > 1
         data = data[0]

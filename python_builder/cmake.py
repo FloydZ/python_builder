@@ -7,10 +7,12 @@ import os
 from subprocess import Popen, PIPE, STDOUT
 from pathlib import Path
 from typing import Union
+
+from common import clean_lines
 from .parse_cmake import parsing
 
 from .make import Make
-from .common import Target, Builder, check_if_file_or_path_containing, inject_env
+from .common import Target, Builder, check_if_file_or_path_containing, inject_env, clean_lines
 
 
 class CMake(Builder):
@@ -144,10 +146,7 @@ class CMake(Builder):
 
             assert p.stdout
             data = p.stdout.readlines()
-            data = [str(a).replace("b'", "")
-                          .replace("\\n'", "")
-                          .lstrip() for a in data]
-
+            data = clean_lines(data)
             if p.returncode != 0:
                 logging.error(cmd, "not available: %s", data)
                 return None
