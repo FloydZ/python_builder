@@ -9,8 +9,8 @@ from os.path import isfile, join
 import re
 import tempfile
 from pathlib import Path
-from .pymake._pymake import parse_makefile_aliases
 
+from .pymake._pymake import parse_makefile_aliases
 from .common import Target, Builder, check_if_file_or_path_containing, clean_lines, inject_env, run_cmd
 
 

@@ -8,9 +8,7 @@ from subprocess import Popen, PIPE, STDOUT
 from pathlib import Path
 from typing import Union
 
-from common import clean_lines
 from .parse_cmake import parsing
-
 from .make import Make
 from .common import Target, Builder, check_if_file_or_path_containing, inject_env, clean_lines
 
