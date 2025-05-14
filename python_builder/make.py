@@ -9,9 +9,9 @@ from os.path import isfile, join
 import re
 import tempfile
 from pathlib import Path
-from pymake._pymake import parse_makefile_aliases
 
-from .common import Target, Builder, check_if_file_or_path_containing, inject_env
+from .pymake._pymake import parse_makefile_aliases
+from .common import Target, Builder, check_if_file_or_path_containing, clean_lines, inject_env, run_cmd
 
 
 class Make(Builder):
@@ -64,29 +64,17 @@ class Make(Builder):
         # while __default_command contains the name of the Target
         # which is build if only `make` is typed into the console
         self.__commands, self.__default_command = parse_makefile_aliases(self.__makefile)
-        
+
         for k in self.__commands.keys():
-            # TODO __path is not always correct
+            # TODO __path is not always correct, why not?
             tmp = Target(k, join(self.__path, k), self.__commands[k],
                          build_function=self.build,
                          run_function=self.run)
             self._targets.append(tmp)
 
-    def available(self) -> bool:
-        """
-        return a boolean value depending on `make` is available on the machine or not.
-        NOTE: this function will check whether the given command in the constructor
-        is available. 
-        """
-        cmd = [self.make, '--version']
-        logging.debug(cmd)
-        p = Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True)
-        p.wait()
-        if p.returncode != 0:
-            return False
-        return True
-
-    def build(self, target: Target, add_flags: str = "", flags: str = ""):
+    def build(self, target: Target,
+              add_flags: str = "",
+              flags: str = "") -> bool:
         """
         builds the `target` of the Makefile. Additionally, this functions
         allows to either overwrite all compiler flags in the `Makefile`
@@ -97,7 +85,6 @@ class Make(Builder):
         NOTE: this only works if `CFLAGS` or `CXXFLAGS` are part of
         the build command
 
-
         :param target: to build
         :param add_flags:
         :param flags
@@ -106,16 +93,18 @@ class Make(Builder):
         if self._error:
             return False
 
-        # TOOD auslagern in eigene fkt und checken das es die immer gibt
-        command1 = [self.make, "clean"] if self.__makefile == "" else [self.make, "-f", self.__makefile_name, "clean"]
+        command1 = [self.make, "clean"] if self.__makefile == "" else \
+                    [self.make, "-f", self.__makefile_name, "clean"]
 
         # first clear the target
         logging.debug(command1)
-        p = Popen(command1, stdout=PIPE, stderr=STDOUT, cwd=self.__build_path)
-        p.wait()
-        if p.returncode != 0:
-            # this is not a catastrophic failure
-            logging.warning("make clean %d: %s", p.returncode, p.stdout.read())
+        with Popen(command1, stdout=PIPE, stderr=STDOUT,
+                   cwd=self.__build_path) as p:
+            p.wait()
+            assert p.stdout
+            if p.returncode != 0:
+                # this is not a catastrophic failure
+                logging.warning("make clean %d: %s", p.returncode, p.stdout.read())
 
         # add CFLAGS/CXXFLAGS to the env
         # NOTE: this only works if `${CFLAGS}/${CXXFLAGS}` is part of the
@@ -141,38 +130,43 @@ class Make(Builder):
         command2.append(self.__path)
 
         logging.debug(command2)
-        p = Popen(command2, stdin=PIPE, stdout=PIPE, stderr=STDOUT,
-                  close_fds=True, cwd=self.__build_path, env=env)
-        p.wait()
+        with Popen(command2, stdin=PIPE, stdout=PIPE, stderr=STDOUT,
+                   close_fds=True, cwd=self.__build_path, env=env) as p:
+            p.wait()
 
-        # return the output of the make command only a little bit more nicer
-        data = p.stdout.readlines()
-        data = [str(a).replace("b'", "")
-                      .replace("\\n'", "")
-                      .lstrip() for a in data]
-        if p.returncode != 0:
-            logging.error("ERROR Build %d: %s", p.returncode, data)
-            return False
+            # return the output of the make command only a little bit more nicer
+            assert p.stdout
+            data = p.stdout.readlines()
+            data = clean_lines(data)
+            if p.returncode != 0:
+                logging.error("ERROR Build %d: %s", p.returncode, data)
+                return False
 
         target.is_build()
         return True
 
-    def __version__(self):
+    def available(self) -> bool:
+        """
+        return a boolean value depending on `make` is available on the machine or not.
+        NOTE: this function will check whether the given command in the constructor
+        is available.
+        """
+        cmd = [self.make, '--version']
+        logging.debug(cmd)
+        with Popen(cmd, stdout=PIPE, stderr=STDOUT,
+                   universal_newlines=True) as p:
+            p.wait()
+            if p.returncode != 0:
+                return False
+            return True
+
+    def __version__(self) -> Union[str, None]:
         """
             returns the version of the installed/given `cmake`
         """
         cmd = [self.make, "--version"]
-        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-        p.wait()
-        if p.returncode != 0:
-            logging.error(cmd, "not available: {0}"
-                          .format(p.stdout.read()))
-            return None
-
-        data = p.stdout.readlines()
-        data = [str(a).replace("b'", "")
-                      .replace("\\n'", "")
-                      .lstrip() for a in data]
+        b, data = run_cmd(cmd)
+        if not b: return None
 
         assert len(data) > 1
         data = data[0]
@@ -184,7 +178,7 @@ class Make(Builder):
         return "make runner"
 
 
-def is_makefile_in_dir(path: str):
+def is_makefile_in_dir(path: str) -> Union[None, Make]:
     """
     returns true if in the given directory `path` contains a VALID
     Makefile or not.
@@ -194,7 +188,6 @@ def is_makefile_in_dir(path: str):
     """
     files = [f for f in listdir(path) if isfile(join(path, f))]
     for f in files:
-        print(f)
         if f == "Makefile":
             return Make(path+f)
-
+    return None

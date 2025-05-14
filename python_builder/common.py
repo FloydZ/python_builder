@@ -2,7 +2,7 @@
 """ contains all functions/classes which are needed by all builders """
 import logging
 import os.path
-from typing import Union, Callable, List
+from typing import Union, Callable, List, Tuple
 from pathlib import Path
 from subprocess import Popen, PIPE, STDOUT
 
@@ -54,13 +54,16 @@ class Target:
         """
         return self.__build_path
 
-    def name(self):
+    def name(self) -> str:
         """
         :return: the name of the output binary/target
         """
         return self.__name
 
     def is_build(self):
+        """
+        flags the Target, that it was build and ready to run
+        """
         self.__build = True
 
     def __str__(self):
@@ -69,7 +72,7 @@ class Target:
     def __repr__(self) -> str:
         return str(self.__dict__)
 
-    def build(self):
+    def build(self) -> bool:
         """
         NOTE: no additional flags are passed
         """
@@ -88,6 +91,12 @@ class Target:
             logging.error("no run function")
             return False
         return self.__run_function(self)
+
+    def kind(self) -> str:
+        """
+        :return either ["binary", "library", "test"]
+        """
+        return "TODO"
 
 
 class Builder:
@@ -110,9 +119,11 @@ class Builder:
         self._threads = 1
         return self
 
-    def run(self, target: Target):
+    def run(self, target: Target) -> List[str]:
         """
         runs the target
+        :param target:
+        :return the output of the shell
         """
         return run_file(target.build_path())
 
@@ -160,6 +171,17 @@ class Builder:
         return False
 
 
+def clean_lines(lines: List[bytes]) -> List[str]:
+    """
+    :param lines: output of p.stdout.readlines()
+    :return the cleaned lines
+    """
+    lines = [a.decode("utf-8").replace("b'", "")
+                   .replace("\\n'", "")
+                   .lstrip() for a in lines]
+    return lines
+
+
 def check_if_file_or_path_containing(n: Union[str, Path],
                                      b: str = "") -> Union[Path, None]:
     """
@@ -194,29 +216,41 @@ def check_if_file_or_path_containing(n: Union[str, Path],
     return t[0]
 
 
-def run_file(file: Union[str, Path]) -> list[str]:
+def run_file(file: Union[Path, str],
+             cwd: Union[str,Path] = "") -> Tuple[bool, list[str]]:
     """
     NOTE: this function does non perform any sanity checks
         like checking the return value
     :param file: runs it
+    :param cwd: working directory
     :return list of str of the output
     """
     if isinstance(file, Path):
         file = str(file)
-
     file = os.path.abspath(file)
     assert os.path.isfile(file)
-
     cmd = [file]
-    with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT) as p:
-        p.wait()
-        # we are note
+    return run_cmd(cmd)
 
+
+def run_cmd(cmd: List[str],
+             cwd: Union[str,Path] = "") -> Tuple[bool, list[str]]:
+    """
+    NOTE: this function does non perform any sanity checks
+        like checking the return value
+    :param cmd: runs it
+    :param cwd: working directory
+    :return list of str of the output
+    """
+    if cwd == "":
+        cwd = None
+    with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT,
+               close_fds=True, cwd=cwd) as p:
+        p.wait()
+        assert p.stdout
         data = p.stdout.readlines()
-        data = [str(a).replace("b'", "")
-                .replace("\\n'", "")
-                .lstrip() for a in data]
-        return data
+        data = clean_lines(data)
+        return p.returncode==0, data
 
 
 def inject_env(env: dict, var: str, add_flags: str = "", flags: str = ""):

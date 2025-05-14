@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
+"""
+wrapper around compile_commands.json
+"""
 import json
 import logging
 import os
 import tempfile
-from typing import List, Union
+from typing import Union
 from subprocess import Popen, PIPE, STDOUT
 from pathlib import Path
 
-from .common import Target, Builder, inject_env
+from .common import Target, Builder, clean_lines
 
 
-class Compile_Commands(Builder):
+class CompileCommands(Builder):
     """
     wrapper for the compile_commands.json file
     """
@@ -19,8 +22,9 @@ class Compile_Commands(Builder):
                  build_path: Union[str, Path] = ""):
         """
         :param file: can be one of the following:
-            - relative or absolute path to a `Makefile`
-            - relative of absolute path to a directory containing a `Makefile`
+            - relative or absolute path to a `compile_commands.json`
+            - relative of absolute path to a directory containing a 
+                `compile_commands.json`
             the `path` can be a `str` or `Path`
         :param build_path:
             path where the binary should be generated. If not passed
@@ -29,13 +33,7 @@ class Compile_Commands(Builder):
         super().__init__()
 
         # that's the full path to the makefile (including the name of the makefile)
-        self.__file = file if isinstance(file, Path) else Path(os.path.abspath(file))
-
-        # that's only the name of the makefile
-        self.__file_name = self.__file.name
-
-        # only the path of the makefile
-        self.__path = self.__file.parent
+        # self.__file = file if isinstance(file, Path) else Path(os.path.abspath(file))
 
         # build path
         if build_path:
@@ -44,14 +42,16 @@ class Compile_Commands(Builder):
             t = tempfile.gettempdir()
             self.__build_path = Path(t)
 
+        data = {}
         try:
-            j = json.load(open(file))
+            with json.load(open(file)) as j:
+                data = j
         except Exception as e:
             logging.error(e)
             self.__error = True
             return
 
-        for t in j:
+        for t in data:
             path = Path(os.path.abspath(t["output"]))
             source_path = Path(os.path.abspath(t["directory"]))
             name = path.name
@@ -67,20 +67,21 @@ class Compile_Commands(Builder):
         """
         return True
 
-    def build(self, target: Target, add_flags: str = "", flags: str = ""):
+    def build(self, target: Target,
+              add_flags: str = "",
+              flags: str = "") -> bool:
         """
-        assumes that cmd is a target
+        :param target:
+        :param add_flags:
+        :param flags:
         return  True on success,
                 False on error
         """
+        _ = add_flags
+        _ = flags
         assert isinstance(target, Target)
-        if self._error:
+        if self.__error:
             return False
-
-        # set flags
-        env = os.environ.copy()
-        inject_env(env, "CFLAGS", add_flags, flags)
-        inject_env(env, "CXXFLAGS", add_flags, flags)
 
         tmp_build_path = target.source_path
         cmd = target.build_commands()
@@ -89,13 +90,10 @@ class Compile_Commands(Builder):
         with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT,
                    close_fds=True, cwd=tmp_build_path) as p:
             p.wait()
+            assert p.stdout
             data = p.stdout.readlines()
-            data = [str(a).replace("b'", "")
-                    .replace("\\n'", "")
-                    .lstrip() for a in data]
+            data = clean_lines(data)
             if p.returncode != 0:
                 logging.error("could not build %s %s", cmd, data)
                 return False
-
-            # TODO copy the file back to the original build dir
             return True

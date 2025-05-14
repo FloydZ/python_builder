@@ -1,3 +1,5 @@
 _build/
-.idea
+build/
+.idea/
 *__pycache__
+python_builder.egg-info/

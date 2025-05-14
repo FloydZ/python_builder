@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-""" """
+""" wrapper around ninja """
 import logging
 import os.path
 from subprocess import Popen, PIPE, STDOUT
-from typing import Union
+from typing import Union, List
 import re
 import tempfile
 from pathlib import Path
 
-from .common import Target, Builder, check_if_file_or_path_containing, inject_env
+from .common import Target, Builder, check_if_file_or_path_containing, clean_lines, inject_env, run_cmd, run_file
 
 
 class Ninja(Builder):
@@ -27,6 +27,9 @@ class Ninja(Builder):
             `ninja` will be used.
         """
         super().__init__()
+
+        self._error = False
+
         self.ninja = Ninja.CMD
         if ninja_cmd:
             self.ninja = ninja_cmd
@@ -34,17 +37,17 @@ class Ninja(Builder):
         assert ninjafile
         ninjafile = check_if_file_or_path_containing(ninjafile, "build.ninja")
         if not ninjafile:
-            self.__error = True
+            self._error = True
             logging.error("build.ninja not available")
             return
 
-        # that's the full path to the makefile (including the name of the makefile)
+        # that's the full path to the ninja file (including the name of the ninja file)
         self.ninjafile = ninjafile
 
-        # that's only the name of the makefile
+        # that's only the name of the ninja file
         self.ninjafile_name = Path(ninjafile).name
 
-        # only the path of the makefile
+        # only the path of the ninja file
         self.path = Path(ninjafile).parent
 
         # build path
@@ -54,30 +57,22 @@ class Ninja(Builder):
             t = tempfile.gettempdir()
             self.__build_path = Path(t)
 
-        command1 = [self.ninja, "-C", self.path, "-t", "targets"]
-
-        # first clear the target
-        logging.debug(command1)
-        p = Popen(command1, stdout=PIPE, stderr=STDOUT, cwd=self.path)
-        p.wait()
-
-        data = p.stdout.readlines()
-        data = [str(a).replace("b'", "")
-                .replace("\\n'", "")
-                .lstrip() for a in data]
-        if p.returncode != 0:
-            self.__error = True
-            logging.error("could not fetch targets from ninja file: %s", data)
-            return
+        command1 = [self.ninja, self.path, "-t", "targets", "all"]
+        b, data = run_cmd(command1, cwd=self.path)
+        assert b
 
         for line in data:
-            sp = line.split(":")
-            assert len(sp) == 2
-            target = sp[0]
-            tmp = Target(target, os.path.join(self.__build_path, target), [],
-                         build_function=self.build, run_function=self.run,
-                         tmp_out_file=target)
-            self._targets.append(tmp)
+            # Skip malformed lines
+            if ':' not in line:
+                continue
+
+            name, type_ = line.split(':', 1)
+            name = name.strip()
+            type_ = type_.strip()
+            if type_ == "link":
+                tmp = Target(name, os.path.join(self.__build_path, name), [],
+                         build_function=self.build, run_function=self.run)
+                self._targets.append(tmp)
 
     def available(self):
         """
@@ -88,11 +83,12 @@ class Ninja(Builder):
         """
         cmd = [self.ninja, '--version']
         logging.debug(cmd)
-        p = Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True)
-        p.wait()
-        if p.returncode != 0:
-            return False
-        return True
+        with Popen(cmd, stdout=PIPE, stderr=STDOUT,
+                   universal_newlines=True) as p:
+            p.wait()
+            if p.returncode != 0:
+                return False
+            return True
 
     def build(self, target: Target, add_flags: str = "", flags: str = ""):
         """
@@ -103,48 +99,28 @@ class Ninja(Builder):
         """
         if self._error:
             return False
-        cmd = [Ninja.CMD, "-C", str(self.path), target.name()]
+        cmd = [Ninja.CMD, target.name()]
+        b, data = run_cmd(cmd, cwd=self.path)
+        if not b: return b
 
-        env = os.environ.copy()
+        target.is_build()
+        return True
 
-        # set flags
-        inject_env(env, "CFLAGS", add_flags, flags)
-        inject_env(env, "CXXFLAGS", add_flags, flags)
-
-        logging.debug(cmd)
-        with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT,
-                   close_fds=True, cwd=self.__build_path) as p:
-            p.wait()
-
-            # return the output of the make command only a little bit more nicer
-            data = p.stdout.readlines()
-            data = [str(a).replace("b'", "")
-                    .replace("\\n'", "")
-                    .lstrip() for a in data]
-            if p.returncode != 0:
-                logging.error("ERROR Build %d: %s", p.returncode, data)
-                return False
-
-            # TODO copy back to outpath
-            target.is_build()
-            return True
+    def run(self, target: Target) -> List[str]:
+        """
+        runs the target
+        """
+        b, r = run_file(target.name(), cwd=self.path)
+        assert b
+        return r
 
     def __version__(self):
         """
             returns the version of the installed/given `cmake`
         """
         cmd = [Ninja.CMD, "--version"]
-        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-        p.wait()
-        if p.returncode != 0:
-            logging.error(cmd, "not available: {0}"
-                          .format(p.stdout.read()))
-            return None
-
-        data = p.stdout.readlines()
-        data = [str(a).replace("b'", "")
-                      .replace("\\n'", "")
-                      .lstrip() for a in data]
+        b, data = run_cmd(cmd)
+        if not b: return None
 
         assert len(data) == 1
         data = data[0]
@@ -154,5 +130,3 @@ class Ninja(Builder):
 
     def __str__(self):
         return "ninja runner"
-
-
