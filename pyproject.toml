@@ -14,7 +14,10 @@ maintainers = [
   { name = "FloydZ", email = "floyd@example.com" }
 ]
 
-dependencies = []
+dependencies = [
+    "pylint"
+    "pytest"
+]
 
 [project.urls]
 "Homepage" = "https://github.com/FloydZ/python_builder"
