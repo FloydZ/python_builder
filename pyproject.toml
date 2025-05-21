@@ -1,5 +1,5 @@
 [project]
-name = "python_builder"
+name = "build_system_parser"
 version = "0.1.0"
 description = "Control all Build Systems"
 readme = "README.md"
