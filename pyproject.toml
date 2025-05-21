@@ -15,8 +15,8 @@ maintainers = [
 ]
 
 dependencies = [
-    "pylint"
-    "pytest"
+    "pylint",
+    "pytest",
 ]
 
 [project.urls]
