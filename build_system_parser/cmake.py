@@ -11,8 +11,8 @@ from typing import Union
 from .parse_cmake import parsing
 from .make import Make
 from .common import Target, Builder, check_if_file_or_path_containing, inject_env, clean_lines
+from .parse_cmake import parsing
 
-from parse_cmake import parsing
 
 class CMake(Builder):
     """

@@ -7,7 +7,7 @@ let
     ipython
     pip
     setuptools
-    virtualenvwrapper
+    virtualenv
     wheel
   ]);
 
@@ -34,9 +34,6 @@ let
     pythonPackages.pytest
     pythonPackages.pylint
     pythonPackages.numpy 
-    # NOTE: not in nixpkgs
-    #parse_cmake
-    #py-make
   ] ++ (lib.optionals pkgs.stdenv.isLinux ([
   ]));
 in

@@ -171,14 +171,19 @@ class Builder:
         return False
 
 
-def clean_lines(lines: List[bytes]) -> List[str]:
+def clean_lines(lines: Union[List[str], List[bytes]]) -> List[str]:
     """
     :param lines: output of p.stdout.readlines()
     :return the cleaned lines
     """
-    lines = [a.decode("utf-8").replace("b'", "")
-                   .replace("\\n'", "")
-                   .lstrip() for a in lines]
+    if len(lines) == 0:
+        return []
+    if isinstance(lines[0], bytes):
+        lines = [a.decode("utf-8") for a in lines]
+    
+    lines = [a.replace("b'", "")
+              .replace("\\n'", "")
+              .lstrip() for a in lines]
     return lines
 
 
