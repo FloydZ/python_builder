@@ -1,3 +1,17 @@
+Metadata-Version: 2.4
+Name: build_system_parser
+Version: 0.1.0
+Summary: Control all Build Systems
+Author-email: FloydZ <floyd@example.com>
+Maintainer-email: FloydZ <floyd@example.com>
+License: MIT
+Project-URL: Homepage, https://github.com/FloydZ/python_builder
+Project-URL: Repository, https://github.com/FloydZ/python_builder
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: pylint
+Requires-Dist: pytest
+
 Python_Builder:
 ==============
 
@@ -14,7 +28,7 @@ Installation:
 ===========
 
 ```shell
-pip install build_system_parser
+pip install python_builder
 ```
 
 A `shell.nix` is provided for local development.
