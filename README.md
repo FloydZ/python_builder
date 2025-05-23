@@ -14,7 +14,7 @@ Installation:
 ===========
 
 ```shell
-pip install python_builder
+pip install build_system_parser
 ```
 
 A `shell.nix` is provided for local development.

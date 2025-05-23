@@ -3,3 +3,4 @@ build/
 .idea/
 *__pycache__
 python_builder.egg-info/
+*.egg-info/
