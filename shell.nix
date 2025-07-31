@@ -12,13 +12,14 @@ let
   ]);
 
   # add the needed packages here
-  extraBuildInputs = with pkgs; [
+  buildInputs = with pkgs; [
+    # Base Python
     myPython
     pythonPackages.numpy
     pythonPackages.pytest
     pythonPackages.pylint
 
-    # needed for running tests
+    # Build tools needed for running tests
     gcc
     clang 
     gnumake
@@ -27,18 +28,49 @@ let
     ninja
     cargo
 
-    # dev helpers
+    # Dev helpers
     ruff
     jetbrains.pycharm-community
 
-    pythonPackages.pytest
-    pythonPackages.pylint
-    pythonPackages.numpy 
+    # Additional build dependencies
+    clang
+    llvmPackages.bintools
+    rustup
+
+    # Other packages needed for compiling python libs
+    readline
+    libffi
+    openssl
+
+    # Needed for LD_LIBRARY_PATH
+    git
+    openssh
+    rsync
   ] ++ (lib.optionals pkgs.stdenv.isLinux ([
   ]));
-in
-import ./python-shell.nix { 
- extraBuildInputs=extraBuildInputs; 
- myPython=myPython;
- pythonWithPkgs=pythonWithPkgs;
-}
+
+  lib-path = with pkgs; lib.makeLibraryPath buildInputs;
+  
+  shell = pkgs.mkShell {
+    buildInputs = [
+      # Python and packages
+      pythonWithPkgs
+    ] ++ buildInputs;
+    
+    shellHook = ''
+      # Allow the use of wheels.
+      SOURCE_DATE_EPOCH=$(date +%s)
+      # Augment the dynamic linker path
+      export "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${lib-path}"
+      # Setup the virtual environment if it doesn't already exist.
+      VENV=.venv
+      if test ! -d $VENV; then
+        virtualenv $VENV
+      fi
+      source ./$VENV/bin/activate
+      export PYTHONPATH=$PYTHONPATH:`pwd`/$VENV/${myPython.sitePackages}/
+      ./build.sh
+      pip install -e .
+    '';
+  };
+in shell
