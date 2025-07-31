@@ -8,7 +8,8 @@ import re
 import tempfile
 from pathlib import Path
 
-from .common import Target, Builder, check_if_file_or_path_containing, clean_lines, inject_env, run_cmd, run_file
+from .common import (Target, Builder, check_if_file_or_path_containing,
+                    clean_lines, inject_env, run_cmd, run_file)
 
 
 class Ninja(Builder):
@@ -94,12 +95,16 @@ class Ninja(Builder):
     def build(self, target: Target, add_flags: str = "", flags: str = ""):
         """
         TODO flags not supported and build path is not used
-        :param target
-        :param add_flags:
-        :param flags
+        :param target: The target to build
+        :param add_flags: Additional compiler flags (not currently used)
+        :param flags: Compiler flags that override existing ones (not currently used)
         """
         if self._error:
             return False
+            
+        # Note: The add_flags and flags parameters are defined for API compatibility
+        # but are not currently used in this implementation
+            
         cmd = [Ninja.CMD, target.name()]
         b, _ = run_cmd(cmd, cwd=self.path)
         if b != 0:
@@ -111,7 +116,7 @@ class Ninja(Builder):
     def run(self, target: Target) -> List[str]:
         """ runs the target """
         # TODO the build path seems to be arbitrary
-        b, r = run_file(self.path / target.name(), cwd=self.path )
+        _, r = run_file(self.path / target.name(), cwd=self.path)
         return r
 
     def __version__(self):

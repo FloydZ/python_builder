@@ -177,7 +177,7 @@ def clean_lines(lines: Union[List[str], List[bytes]]) -> List[str]:
 
     if isinstance(lines[0], bytes):
         lines = [line.decode("utf-8") for line in lines]
-    
+
     lines = [a.replace("b'", "")
               .replace("\\n'", "")
               .lstrip() for a in lines]

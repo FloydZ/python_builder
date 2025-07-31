@@ -11,7 +11,8 @@ import tempfile
 from pathlib import Path
 
 from .pymake._pymake import parse_makefile_aliases
-from .common import Target, Builder, check_if_file_or_path_containing, clean_lines, inject_env, run_cmd
+from .common import (Target, Builder, check_if_file_or_path_containing,
+                     clean_lines, inject_env, run_cmd)
 
 
 class Make(Builder):
@@ -65,9 +66,9 @@ class Make(Builder):
         # which is build if only `make` is typed into the console
         self.__commands, self.__default_command = parse_makefile_aliases(self.__makefile)
 
-        for k in self.__commands.keys():
+        for k, v in self.__commands.items():
             # TODO __path is not always correct, why not?
-            tmp = Target(k, join(self.__path, k), self.__commands[k],
+            tmp = Target(k, join(self.__path, k), v,
                          build_function=self.build,
                          run_function=self.run)
             self._targets.append(tmp)

@@ -11,7 +11,6 @@ from typing import Union
 from .parse_cmake import parsing
 from .make import Make
 from .common import Target, Builder, check_if_file_or_path_containing, inject_env, clean_lines
-from .parse_cmake import parsing
 
 
 class CMake(Builder):
@@ -61,7 +60,7 @@ class CMake(Builder):
             t = tempfile.gettempdir()
             self.__build_path = Path(t)
 
-        with open(cmake_file, "r") as f:
+        with open(cmake_file, "r", encoding="utf-8") as f:
             cmake_data = f.read()
 
         self.__internal_cmakefile = parsing.parse(cmake_data)
@@ -72,7 +71,7 @@ class CMake(Builder):
                     t = Target(name, os.path.join(self.__build_path, name), [],
                                self.build, self.run)
                     self._targets.append(t)
-            except Exception as e:
+            except (AttributeError, IndexError, TypeError) as e:
                 self.__error = True
                 logging.error("could not parse %s %s", cmake_file, e)
                 return

@@ -4,7 +4,6 @@ import logging
 import tempfile
 import re
 import os
-import glob
 import itertools
 from subprocess import Popen, PIPE, STDOUT
 from pathlib import Path
@@ -21,9 +20,9 @@ class Bazel(Builder):
 
     # build_target: //main:hello-world
     # returns: {"label": "hello-world", "path": "bazel-out/k8-fastbuild/bin/main/hello-world"}
-    get_build_path_cmd = "bazel cquery ${build_target} --output=starlark "
-    "--starlark:expr='{\"label\": target.label.name, \"path\": target.files."
-    "to_list()[0].path}'"
+    get_build_path_cmd = ("bazel cquery ${build_target} --output=starlark "
+                          "--starlark:expr='{\"label\": target.label.name, \"path\": target.files."
+                          "to_list()[0].path}'")
 
 
     def __init__(self, bazel_path: Union[str, Path],
@@ -118,7 +117,7 @@ class Bazel(Builder):
         runs the target
         """
         cmd = [Bazel.CMD, 'run', target.build_commands()[0]]
-        b, ret = run_cmd(cmd, self.__bazel_path)
+        _, ret = run_cmd(cmd, self.__bazel_path)
         return ret
 
     def available(self) -> bool:
@@ -157,7 +156,7 @@ class Bazel(Builder):
         def _split_rule(x) -> str:
             try:
                 return x.split('"')[1]
-            except:
+            except IndexError:
                 return ""
 
         result = [_split_rule(x) for x in rule_list]
@@ -171,8 +170,8 @@ class Bazel(Builder):
         :param content:
         :param target_path:
         """
-        regex_rule = '\(\\n.*'
-        rules = re.findall('{}{}'.format(rule_type, regex_rule), content)
+        regex_rule = "\\(\\n.*"
+        rules = re.findall(f'{rule_type}{regex_rule}', content)
         rule_names = Bazel.extract_rule_name(rules)
         return rule_names
 
@@ -194,8 +193,8 @@ class Bazel(Builder):
         # remove the `BUILD` from `filename`
         dirname =os.path.dirname(filename)
         # generate: `//main:hello-world`, which is something like the build commands
-        target_path = '/{}:'.format(dirname.split(ws_dir)[1])
-        with open(filename, 'r') as f:
+        target_path = f'/{dirname.split(ws_dir)[1]}:'
+        with open(filename, 'r', encoding='utf-8') as f:
             content = f.read()
             out = [Bazel.extract_specific_rule(opt, content)
                 for _, opt in enumerate(filtered_choices)]
@@ -231,7 +230,7 @@ class Bazel(Builder):
         #return t
         ret = []
         target_filename = "BUILD"
-        for root, dirs, files in os.walk(path, topdown=True, followlinks=False):
+        for root, _, files in os.walk(path, topdown=True, followlinks=False):
             if target_filename in files:
                 ret.append(os.path.join(root, target_filename))
         return ret

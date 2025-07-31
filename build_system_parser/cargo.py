@@ -3,11 +3,10 @@
 
 import logging
 import re
-import tempfile
 import json
 import os.path
 from subprocess import Popen, PIPE, STDOUT
-from typing import Union, Tuple, List
+from typing import Union, List
 from os.path import join
 from pathlib import Path
 
@@ -76,8 +75,8 @@ class Cargo(Builder):
                 )
                 self._targets.append(target)
 
-    def build(self, 
-              target: Target, 
+    def build(self,
+              target: Target,
               add_flags: str = "", flags
               : str = ""):
         """
@@ -91,7 +90,7 @@ class Cargo(Builder):
             return False
 
         env = os.environ.copy()
-        if len(add_flags) or len(flags):
+        if add_flags or flags:
             inject_env(env, "RUSTFLAGS", add_flags, flags)
 
         kind = target.kind
@@ -121,7 +120,7 @@ class Cargo(Builder):
         """
         run_or_build = "run" if target.kind != "bench" else "bench"
         cmd = [Cargo.CMD, run_or_build, target.name()]
-        b, r = run_cmd(cmd, cwd=self.__path)
+        _, r = run_cmd(cmd, cwd=self.__path)
         return r
 
     def available(self) -> bool:
@@ -151,7 +150,6 @@ class Cargo(Builder):
         ver = re.findall(r"\d.\d+.\d?", data)
         assert len(ver) >= 1
         return ver[0]
-        
     def __get_metadata(self) -> dict:
         """
         runs:

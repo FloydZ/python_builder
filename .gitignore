@@ -4,3 +4,5 @@ build/
 *__pycache__
 python_builder.egg-info/
 *.egg-info/
+
+**/.claude/settings.local.json
