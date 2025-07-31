@@ -5,7 +5,7 @@ edition = "2021"
 
 
 [dependencies]
-criterion = { version = "0.4", features = ["html_reports"] }
+criterion = { version = "0.7", features = ["html_reports"] }
 
 [[bench]]
 name = "my_benchmark"

@@ -20,8 +20,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/FloydZ/python_builder"
-"Repository" = "https://github.com/FloydZ/python_builder"
+"Homepage" = "https://github.com/FloydZ/build_system_parser"
+"Repository" = "https://github.com/FloydZ/build_system_parser"
 
 [build-system]
 requires = ["setuptools>=61.0"]

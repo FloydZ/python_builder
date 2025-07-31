@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """ test cargo.py """
-from python_builder.bazel import Bazel
+from build_system_parser.bazel import Bazel
 
 
 def test_bazel():

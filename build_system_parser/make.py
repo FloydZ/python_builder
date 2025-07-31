@@ -166,7 +166,8 @@ class Make(Builder):
         """
         cmd = [self.make, "--version"]
         b, data = run_cmd(cmd)
-        if not b: return None
+        if b != 0:
+            return None
 
         assert len(data) > 1
         data = data[0]

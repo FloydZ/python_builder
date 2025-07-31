@@ -41,11 +41,13 @@ class Cargo(Builder):
         if cargo_cmd:
             Cargo.CMD = cargo_cmd
 
-        file = check_if_file_or_path_containing(file, "Cargo.toml")
-        if not file:
+        file_ = check_if_file_or_path_containing(file, "Cargo.toml")
+        if not file_:
             self._error = True
             logging.error("Cargo.toml not available")
             return
+
+        file = file_
 
         # that's the full path to the cargo.toml (including the name of the cargo.toml)
         self.__file = Path(os.path.abspath(file))
@@ -74,21 +76,27 @@ class Cargo(Builder):
                 )
                 self._targets.append(target)
 
-    def build(self, target: Target, add_flags: str = "", flags: str = ""):
+    def build(self, 
+              target: Target, 
+              add_flags: str = "", flags
+              : str = ""):
         """
         these flags are injected into `RUSTFLAGS`
         :param target: to build
-        :param add_flags:
-        :param flags:
+        :param add_flags: TODO
+        :param flags: TODO
         """
         assert isinstance(target, Target)
         if self._error:
             return False
 
         env = os.environ.copy()
-        inject_env(env, "RUSTFLAGS", add_flags, flags)
+        if len(add_flags) or len(flags):
+            inject_env(env, "RUSTFLAGS", add_flags, flags)
 
-        cmd = [Cargo.CMD, "build", "--" + target.kind, target.name()]
+        kind = target.kind
+        assert isinstance(kind, str)
+        cmd = [Cargo.CMD, "build", "--" + kind, target.name()]
         logging.debug(cmd)
         with Popen(
             cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True, cwd=self.__path
@@ -114,7 +122,6 @@ class Cargo(Builder):
         run_or_build = "run" if target.kind != "bench" else "bench"
         cmd = [Cargo.CMD, run_or_build, target.name()]
         b, r = run_cmd(cmd, cwd=self.__path)
-        assert b
         return r
 
     def available(self) -> bool:
@@ -136,7 +143,8 @@ class Cargo(Builder):
         """returns the version of the installed/given `cargo`"""
         cmd = [Cargo.CMD, "--version"]
         b, data = run_cmd(cmd)
-        if not b: return None
+        if b != 0:
+            return None
 
         assert len(data) == 1
         data = data[0]
@@ -144,7 +152,7 @@ class Cargo(Builder):
         assert len(ver) >= 1
         return ver[0]
         
-    def __get_metadata(self) -> str:
+    def __get_metadata(self) -> dict:
         """
         runs:
             cargo metadata --format-version=1 --no-deps
@@ -223,7 +231,7 @@ class Cargo(Builder):
         """
         cmd = [Cargo.CMD, "metadata", "--format-version=1", "--no-deps"]
         b, data = run_cmd(cmd, cwd=self.__path)
-        assert b
+        assert b == 0
         assert len(data) == 1
         data = json.loads(data[0])
         return data

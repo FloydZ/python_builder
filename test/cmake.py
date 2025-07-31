@@ -2,7 +2,7 @@
 """ tests for cmake.py """
 
 import os
-from python_builder.cmake import CMake
+from build_system_parser.cmake import CMake
 
 
 def test_cmake_runner():

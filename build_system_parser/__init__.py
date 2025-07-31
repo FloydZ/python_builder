@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" main module of `pyhton_builder` """
+""" main module of `build_system_parser` """
 
 import sys
 import argparse
@@ -19,7 +19,7 @@ builders = [
 ]
 
 def main():
-    parser = argparse.ArgumentParser(description="Universal Build CLI using python_builder")
+    parser = argparse.ArgumentParser(description="Universal Build CLI using build_system_parser")
     parser.add_argument('--builder', '-b', required=True, choices=builders,
                         help="Specify the build system to use.")
     parser.add_argument('--target', '-t', required=True,

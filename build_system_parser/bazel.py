@@ -99,6 +99,7 @@ class Bazel(Builder):
             cmd += [f"--copt={f}"]
 
         logging.debug(cmd)
+        # TODO use `run_cmd`
         with Popen(cmd, stdout=PIPE, stderr=STDOUT, universal_newlines=True,
                    cwd=self.__bazel_path) as p:
             p.wait()
@@ -118,7 +119,6 @@ class Bazel(Builder):
         """
         cmd = [Bazel.CMD, 'run', target.build_commands()[0]]
         b, ret = run_cmd(cmd, self.__bazel_path)
-        assert b
         return ret
 
     def available(self) -> bool:
@@ -130,13 +130,14 @@ class Bazel(Builder):
         cmd = [Bazel.CMD, '--version']
         logging.debug(cmd)
         b, _ = run_cmd(cmd)
-        return b
+        return b == 0
 
     def __version__(self):
         """ returns the version of the installed/given `bazel` """
         cmd = [Bazel.CMD, "--version"]
         b, data = run_cmd(cmd)
-        if not b: return None
+        if b != 0:
+            return None
 
         assert len(data) == 1
         data = data[0]

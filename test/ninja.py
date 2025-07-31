@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ test ninja.py """
 
-from python_builder.ninja import Ninja
+from build_system_parser.ninja import Ninja
 
 
 def test_ninja_runner():
@@ -18,6 +18,7 @@ def test_ninja_build():
     assert n.available()
     assert n.__version__()
     assert n.targets()
+
     t = n.target("simple")
     assert t
     assert t.build()

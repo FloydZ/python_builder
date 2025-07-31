@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """ test cargo.py """
-from python_builder.cargo import Cargo
+from build_system_parser.cargo import Cargo
 
 
 def test_cargo():

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """ test make.py """
-from python_builder.make import Make
+from build_system_parser.make import Make
 import os
 
 TEST_PATH = "test/make/"

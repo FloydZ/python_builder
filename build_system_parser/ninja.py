@@ -35,12 +35,13 @@ class Ninja(Builder):
             self.ninja = ninja_cmd
 
         assert ninjafile
-        ninjafile = check_if_file_or_path_containing(ninjafile, "build.ninja")
-        if not ninjafile:
+        ninjafile_ = check_if_file_or_path_containing(ninjafile, "build.ninja")
+        if not ninjafile_:
             self._error = True
             logging.error("build.ninja not available")
             return
 
+        ninjafile = ninjafile_
         # that's the full path to the ninja file (including the name of the ninja file)
         self.ninjafile = ninjafile
 
@@ -59,7 +60,7 @@ class Ninja(Builder):
 
         command1 = [self.ninja, self.path, "-t", "targets", "all"]
         b, data = run_cmd(command1, cwd=self.path)
-        assert b
+        assert b == 0
 
         for line in data:
             # Skip malformed lines
@@ -92,7 +93,7 @@ class Ninja(Builder):
 
     def build(self, target: Target, add_flags: str = "", flags: str = ""):
         """
-        TODO flags
+        TODO flags not supported and build path is not used
         :param target
         :param add_flags:
         :param flags
@@ -100,18 +101,17 @@ class Ninja(Builder):
         if self._error:
             return False
         cmd = [Ninja.CMD, target.name()]
-        b, data = run_cmd(cmd, cwd=self.path)
-        if not b: return b
+        b, _ = run_cmd(cmd, cwd=self.path)
+        if b != 0:
+            return b
 
         target.is_build()
         return True
 
     def run(self, target: Target) -> List[str]:
-        """
-        runs the target
-        """
-        b, r = run_file(target.name(), cwd=self.path)
-        assert b
+        """ runs the target """
+        # TODO the build path seems to be arbitrary
+        b, r = run_file(self.path / target.name(), cwd=self.path )
         return r
 
     def __version__(self):
@@ -120,7 +120,8 @@ class Ninja(Builder):
         """
         cmd = [Ninja.CMD, "--version"]
         b, data = run_cmd(cmd)
-        if not b: return None
+        if b != 0:
+            return None
 
         assert len(data) == 1
         data = data[0]
