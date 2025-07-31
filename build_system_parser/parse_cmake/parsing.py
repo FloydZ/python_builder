@@ -84,23 +84,38 @@ class Comment(str):
         return 'Comment(' + str(self) + ')'
 
 
-def Arg(contents, comments=None):
+def arg(contents, comments=None):
     """
-    TODO
+    Create an argument with optional comments.
+    
+    Args:
+        contents: The content of the argument
+        comments: Optional list of comments
+    
+    Returns:
+        An _Arg instance
     """
     return _Arg(contents, comments or [])
 
 
-def Command(name, body, comment=None):
+def command(name, body, comment=None):
     """
-    TODO
+    Create a command with name, body and optional comment.
+    
+    Args:
+        name: The name of the command
+        body: The body of the command
+        comment: Optional comment for the command
+    
+    Returns:
+        A _Command instance
     """
     return _Command(name, body, comment)
 
 
 class CMakeParseError(Exception):
     """
-    TODO
+    Exception raised when parsing CMake files fails.
     """
     pass
 
@@ -160,24 +175,40 @@ def compose_lines(tree, formatting_opts):
 
 def is_parameter_name_arg(name):
     """
-    TODO
+    Determines if a string is a parameter name argument.
+    
+    Args:
+        name: The string to check
+        
+    Returns:
+        True if the string is a parameter name (all uppercase with underscores),
+        and not 'ON' or 'OFF'. False otherwise.
     """
     return re.match('^[A-Z_]+$', name) and name not in ['ON', 'OFF']
 
 
 def command_to_lines(cmd, formatting_opts, use_multiple_lines=False):
     """
-    TODO
+    Converts a command to a list of formatted lines.
+    
+    Args:
+        cmd: The command to format
+        formatting_opts: The formatting options to use
+        use_multiple_lines: Whether to use multiple lines for formatting
+        
+    Returns:
+        A list of formatted lines representing the command
     """
-    class output:
+    class Output:
+        """Helper class to collect command output lines."""
         lines = []
         current_line = cmd.name.lower() + '('
         is_first_in_line = True
 
     def end_current_line():
-        output.lines += [output.current_line]
-        output.current_line = ''
-        output.is_first_in_line = True
+        Output.lines += [Output.current_line]
+        Output.current_line = ''
+        Output.is_first_in_line = True
 
     for arg_index, arg in enumerate(cmd.body):
         # when formatting a command to multiple lines, try to start
@@ -190,7 +221,7 @@ def command_to_lines(cmd, formatting_opts, use_multiple_lines=False):
             end_current_line()
 
         arg_str = arg_to_str(arg).strip()
-        if len(output.current_line) + len(arg_str) > formatting_opts.max_line_width:
+        if len(Output.current_line) + len(arg_str) > formatting_opts.max_line_width:
             if not use_multiple_lines:
                 # if the command does not fit on a single line, re-enter the function
                 # in multi-line formatting mode so that we can choose the best
@@ -198,29 +229,34 @@ def command_to_lines(cmd, formatting_opts, use_multiple_lines=False):
                 return command_to_lines(cmd, formatting_opts, use_multiple_lines=True)
             end_current_line()
 
-        if output.is_first_in_line:
-            output.is_first_in_line = False
+        if Output.is_first_in_line:
+            Output.is_first_in_line = False
         else:
-            output.current_line += ' '
+            Output.current_line += ' '
 
-        output.current_line += arg_str
+        Output.current_line += arg_str
         if len(arg.comments) > 0:
             end_current_line()
 
-    output.current_line += ')'
+    Output.current_line += ')'
 
     if cmd.comment:
-        output.current_line += ' ' + cmd.comment
+        Output.current_line += ' ' + cmd.comment
 
     end_current_line()
 
-    return output.lines
+    return Output.lines
 
 
 def arg_to_str(arg):
     """
-    :param arg:
-    :return 
+    Converts an argument to a string.
+    
+    Args:
+        arg: The argument to convert
+        
+    Returns:
+        A string representation of the argument
     """
     comment_part = '  ' + '\n'.join(arg.comments) + '\n' if arg.comments else ''
     return arg.contents + comment_part
@@ -247,14 +283,28 @@ def parse_file(toks):
 
 def attach_comments_to_commands(nodes):
     """
-    TODO
+    Attaches comments to their associated commands.
+    
+    Args:
+        nodes: The list of parsed nodes
+        
+    Returns:
+        A list of nodes with comments attached to their commands
     """
     return list_utils.merge_pairs(nodes, command_then_comment, attach_comment_to_command)
 
 
 def command_then_comment(a, b):
     """
-    TODO
+    Checks if a command is followed by a comment.
+    
+    Args:
+        a: The first node
+        b: The second node
+        
+    Returns:
+        True if the first node is a command and the second node is a comment
+        on the same line, False otherwise
     """
     line_nums_a, thing_a = a
     line_nums_b, thing_b = b
@@ -265,47 +315,73 @@ def command_then_comment(a, b):
 
 def attach_comment_to_command(lnums_command, lnums_comment):
     """
-    TODO
+    Attaches a comment to a command.
+    
+    Args:
+        lnums_command: The command with line numbers
+        lnums_comment: The comment with line numbers
+        
+    Returns:
+        A tuple of line numbers and the command with the comment attached
     """
     command_lines, command = lnums_command
     _, comment = lnums_comment
-    return command_lines, Command(command.name, command.body[:], comment)
+    return command_lines, _Command(command.name, command.body[:], comment)
 
 
 def parse_command(start_line_num, command_name, toks):
     """
-    TODO
+    Parses a command from a token stream.
+    
+    Args:
+        start_line_num: The line number where the command starts
+        command_name: The name of the command
+        toks: The token stream
+        
+    Returns:
+        A tuple of line numbers and the parsed command
+        
+    Raises:
+        CMakeParseError: If the command is malformed
     """
-    cmd = Command(name=command_name, body=[], comment=None)
+    cmd = _Command(name=command_name, body=[], comment=None)
     expect('left paren', toks)
     for line_num, (typ, tok_contents) in toks:
         if typ == 'right paren':
             line_nums = range(start_line_num, line_num + 1)
             return line_nums, cmd
-        elif typ == 'left paren':
+        if typ == 'left paren':
             pass
-            # raise ValueError('Unexpected left paren at line %s' % line_num)
+            # raise ValueError(f'Unexpected left paren at line {line_num}')
         elif typ in ('word', 'string'):
-            cmd.body.append(Arg(tok_contents, []))
+            cmd.body.append(arg(tok_contents, []))
         elif typ == 'comment':
             c = tok_contents
             if cmd.body:
                 cmd.body[-1].comments.append(c)
             else:
-                cmd.comments.append(c)
-    msg = 'File ended while processing command "%s" started at line %s' % (
-        command_name, start_line_num)
+                if cmd.comment is None:
+                    cmd.comment = c
+                else:
+                    cmd.comment += "\n" + c
+    msg = f'File ended while processing command "{command_name}" started at line {start_line_num}'
     raise CMakeParseError(msg)
 
 
 def expect(expected_type, toks):
     """
-    TODO
+    Expects a token of a specific type from a token stream.
+    
+    Args:
+        expected_type: The expected token type
+        toks: The token stream
+        
+    Raises:
+        CMakeParseError: If the next token is not of the expected type
     """
     line_num, (typ, tok_contents) = next(toks)
     if typ != expected_type:
-        msg = 'Expected a %s, but got "%s" at line %s' % (
-            expected_type, tok_contents, line_num)
+        msg = f'Expected a {expected_type}, but got "{tok_contents}" at line {line_num}'
         raise CMakeParseError(msg)
 
 # http://stackoverflow.com/questions/691148/pythonic-way-to-implement-a-tokenizer
@@ -329,7 +405,7 @@ def tokenize(s):
     toks, remainder = scanner.scan(s)
     line_num = 1
     if remainder != '':
-        msg = 'Unrecognized tokens at line %s: %s' % (line_num, remainder)
+        msg = f'Unrecognized tokens at line {line_num}: {remainder}'
         raise ValueError(msg)
     for tok_type, tok_contents in toks:
         yield line_num, (tok_type, tok_contents.strip())
