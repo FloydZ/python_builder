@@ -84,7 +84,7 @@ class CMake(Builder):
             if p.returncode != 0:
                 self.__error = True
                 assert p.stdout
-                logging.error("couldn't create the cmake project: %d", p.stdout.read())
+                logging.error("couldn't create the cmake project: %s", p.stdout.read())
                 return
 
     def available(self) -> bool:

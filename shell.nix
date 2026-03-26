@@ -1,8 +1,8 @@
 with import <nixpkgs> { };
 { pkgs ? import <nixpkgs> { } }:
 let 
-  myPython = pkgs.python311;
-  pythonPackages = pkgs.python311Packages;
+  myPython = pkgs.python3;
+  pythonPackages = pkgs.python3Packages;
   pythonWithPkgs = myPython.withPackages (pythonPkgs: with pythonPkgs; [
     ipython
     pip
@@ -71,6 +71,18 @@ let
       export PYTHONPATH=$PYTHONPATH:`pwd`/$VENV/${myPython.sitePackages}/
       ./build.sh
       pip install -e .
+
+      # setup the buildsystems
+      # rust 
+      rustup toolchain install stable
+      cd test/cargo
+      cargo build
+      cd ../..
+
+      # make 
+      cd test/make
+      make clean
+      cd ../.. 
     '';
   };
 in shell
