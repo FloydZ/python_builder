@@ -22,7 +22,8 @@ class CMake(Builder):
 
     def __init__(self, cmake_file: Union[str, Path],
                  build_path: Union[str, Path] = "",
-                 cmake_bin: str = ""):
+                 cmake_bin: str = "",
+                 nr_threads: int = 1):
         """
         :param cmake_file: can be one of the following:
             - relative or absolute path to a `Makefile`
@@ -32,6 +33,8 @@ class CMake(Builder):
             path where the binary should be generated. If not passed
             as an argument a random temp path will be chosen
         :param cmake_bin: path to the `cmake` executable
+        :param nr_threads: number of threads to use to build the project
+            0 = all available
         """
         super().__init__()
 
@@ -52,6 +55,8 @@ class CMake(Builder):
 
         # only the path of the makefile
         self.__path: Path = self.__cmakefile.parent
+
+        self.__nr_threads: str = "" if nr_threads == 0 else str(nr_threads)
 
         # build path
         if build_path:
@@ -111,7 +116,7 @@ class CMake(Builder):
         if self.__error:
             return False
 
-        cmd = [CMake.CMD, '--build', self.__build_path]
+        cmd = [CMake.CMD, '--build', self.__build_path, '--parallel', self.__nr_threads]
 
         # set flags
         env = os.environ.copy()
