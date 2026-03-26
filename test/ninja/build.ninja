@@ -1,0 +1,24 @@
+pool link_pool
+  depth = 1
+
+rule cc
+  deps = gcc
+  depfile = $out.d
+  command = gcc -MMD -MF $out.d $cflags -c $in -o $out
+
+rule cxx
+  deps = gcc
+  depfile = $out.d
+  command = g++ -MMD -MF $out.d $cxxflags -c $in -o $out
+
+rule link
+  pool = link_pool
+  command = gcc $ldflags $in -o $out
+
+outdir = build_ninja
+ldflags = -lstdc++ -lm
+cflags = -DFOO
+cxxflags = $cflags -std=c++11
+
+build $outdir/simple.o: cxx simple.c
+build $outdir/simple: link $outdir/simple.o

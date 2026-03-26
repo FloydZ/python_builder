@@ -1,0 +1,15 @@
+[
+  {
+    "arguments": [
+      "cc",
+      "-c",
+      "-g",
+      "-o",
+      "simple",
+      "simple.c"
+    ],
+    "directory": "test/make",
+    "file": "test/make/simple.c",
+    "output": "test/make/simple"
+  }
+]

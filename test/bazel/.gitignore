@@ -1,0 +1,8 @@
+*/bazel-bin
+*/bazel-out
+*/bazel-stage1
+*/bazel-testlogs
+stage1/bazel-bin/
+stage1/bazel-out
+stage1/bazel-stage1
+stage1/bazel-testlogs
