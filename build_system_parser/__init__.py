@@ -24,6 +24,7 @@ def main():
     Parses arguments, validates the target, and executes the build process.
     """
     parser = argparse.ArgumentParser(description="Universal Build CLI using build_system_parser")
+
     parser.add_argument('--builder', '-b', required=True, choices=builders,
                         help="Specify the build system to use.")
     parser.add_argument('--target', '-t', required=True,
