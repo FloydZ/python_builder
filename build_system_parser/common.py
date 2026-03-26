@@ -61,9 +61,7 @@ class Target:
         return self.__name
 
     def is_build(self):
-        """
-        flags the Target, that it was build and ready to run
-        """
+        """ flags the Target, that it was build and ready to run """
         self.__build = True
 
     def __str__(self):
@@ -144,12 +142,10 @@ class Builder:
         :param name: name of the executable/binary/library
         :return: the target with the name `name`
         """
-        if self.is_valid_target(name):
-            return None
-
         for t in self.targets():
             if name == t.name():
                 return t
+
         # fallback
         for t in self.targets():
             if name in t.name():
@@ -163,9 +159,9 @@ class Builder:
         :param target: the string or `Target` to check if its exists
         :return true/false: if the target name is valid or not
         """
-        name = target if isinstance(target, str) else target.name
+        name = target if isinstance(target, str) else target.name()
         for t in self.targets():
-            if name == t.name:
+            if name == t.name():
                 return True
 
         return False
@@ -178,9 +174,10 @@ def clean_lines(lines: Union[List[str], List[bytes]]) -> List[str]:
     """
     if len(lines) == 0:
         return []
+
     if isinstance(lines[0], bytes):
-        lines = [a.decode("utf-8") for a in lines]
-    
+        lines = [line.decode("utf-8") for line in lines]
+
     lines = [a.replace("b'", "")
               .replace("\\n'", "")
               .lstrip() for a in lines]
@@ -222,7 +219,7 @@ def check_if_file_or_path_containing(n: Union[str, Path],
 
 
 def run_file(file: Union[Path, str],
-             cwd: Union[str,Path] = "") -> Tuple[bool, list[str]]:
+             cwd: Union[str,Path] = "") -> Tuple[int, list[str]]:
     """
     NOTE: this function does non perform any sanity checks
         like checking the return value
@@ -235,27 +232,30 @@ def run_file(file: Union[Path, str],
     file = os.path.abspath(file)
     assert os.path.isfile(file)
     cmd = [file]
-    return run_cmd(cmd)
+    return run_cmd(cmd, cwd=cwd)
 
 
 def run_cmd(cmd: List[str],
-             cwd: Union[str,Path] = "") -> Tuple[bool, list[str]]:
+            cwd: Union[str, Path] = "") -> Tuple[int, list[str]]:
     """
     NOTE: this function does non perform any sanity checks
         like checking the return value
     :param cmd: runs it
     :param cwd: working directory
-    :return list of str of the output
+    :return returncode and list of str of the output
     """
     if cwd == "":
-        cwd = None
+        cwd_ = None
+    else:
+        cwd_ = cwd
+
     with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT,
-               close_fds=True, cwd=cwd) as p:
+               close_fds=True, cwd=cwd_) as p:
         p.wait()
         assert p.stdout
         data = p.stdout.readlines()
         data = clean_lines(data)
-        return p.returncode==0, data
+        return p.returncode, data
 
 
 def inject_env(env: dict, var: str, add_flags: str = "", flags: str = ""):

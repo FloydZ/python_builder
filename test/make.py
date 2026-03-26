@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ test make.py """
-from python_builder.make import Make
 import os
+from build_system_parser.make import Make
 
 TEST_PATH = "test/make/"
 
@@ -43,7 +43,7 @@ def test_make_target_build_run():
     assert t
     assert t.build()
     ret = t.run()
-    if ret == False:
+    if ret is False:
         assert ret
 
 def test_all():

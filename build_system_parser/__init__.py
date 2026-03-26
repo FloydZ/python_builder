@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" main module of `pyhton_builder` """
+""" main module of `build_system_parser` """
 
 import sys
 import argparse
@@ -19,7 +19,12 @@ builders = [
 ]
 
 def main():
-    parser = argparse.ArgumentParser(description="Universal Build CLI using python_builder")
+    """
+    Command-line interface for the build system parser.
+    Parses arguments, validates the target, and executes the build process.
+    """
+    parser = argparse.ArgumentParser(description="Universal Build CLI using build_system_parser")
+
     parser.add_argument('--builder', '-b', required=True, choices=builders,
                         help="Specify the build system to use.")
     parser.add_argument('--target', '-t', required=True,
@@ -52,8 +57,20 @@ def main():
         target = builder.target(args.target)
         builder.build(target)
         print(f"Successfully built target '{args.target}' using {args.builder}.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    except FileNotFoundError as e:
+        print(f"Build file not found: {e}")
+        sys.exit(1)
+    except PermissionError as e:
+        print(f"Permission error: {e}")
+        sys.exit(1)
+    except ImportError as e:
+        print(f"Import error: {e}")
+        sys.exit(1)
+    except ValueError as e:
+        print(f"Value error: {e}")
+        sys.exit(1)
+    except RuntimeError as e:
+        print(f"Runtime error: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

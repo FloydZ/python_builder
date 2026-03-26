@@ -8,7 +8,8 @@ import re
 import tempfile
 from pathlib import Path
 
-from .common import Target, Builder, check_if_file_or_path_containing, clean_lines, inject_env, run_cmd, run_file
+from .common import (Target, Builder, check_if_file_or_path_containing,
+                    clean_lines, inject_env, run_cmd, run_file)
 
 
 class Ninja(Builder):
@@ -35,12 +36,13 @@ class Ninja(Builder):
             self.ninja = ninja_cmd
 
         assert ninjafile
-        ninjafile = check_if_file_or_path_containing(ninjafile, "build.ninja")
-        if not ninjafile:
+        ninjafile_ = check_if_file_or_path_containing(ninjafile, "build.ninja")
+        if not ninjafile_:
             self._error = True
             logging.error("build.ninja not available")
             return
 
+        ninjafile = ninjafile_
         # that's the full path to the ninja file (including the name of the ninja file)
         self.ninjafile = ninjafile
 
@@ -59,7 +61,7 @@ class Ninja(Builder):
 
         command1 = [self.ninja, self.path, "-t", "targets", "all"]
         b, data = run_cmd(command1, cwd=self.path)
-        assert b
+        assert b == 0
 
         for line in data:
             # Skip malformed lines
@@ -92,26 +94,29 @@ class Ninja(Builder):
 
     def build(self, target: Target, add_flags: str = "", flags: str = ""):
         """
-        TODO flags
-        :param target
-        :param add_flags:
-        :param flags
+        TODO flags not supported and build path is not used
+        :param target: The target to build
+        :param add_flags: Additional compiler flags (not currently used)
+        :param flags: Compiler flags that override existing ones (not currently used)
         """
         if self._error:
             return False
+            
+        # Note: The add_flags and flags parameters are defined for API compatibility
+        # but are not currently used in this implementation
+            
         cmd = [Ninja.CMD, target.name()]
-        b, data = run_cmd(cmd, cwd=self.path)
-        if not b: return b
+        b, _ = run_cmd(cmd, cwd=self.path)
+        if b != 0:
+            return b
 
         target.is_build()
         return True
 
     def run(self, target: Target) -> List[str]:
-        """
-        runs the target
-        """
-        b, r = run_file(target.name(), cwd=self.path)
-        assert b
+        """ runs the target """
+        # TODO the build path seems to be arbitrary
+        _, r = run_file(self.path / target.name(), cwd=self.path)
         return r
 
     def __version__(self):
@@ -120,7 +125,8 @@ class Ninja(Builder):
         """
         cmd = [Ninja.CMD, "--version"]
         b, data = run_cmd(cmd)
-        if not b: return None
+        if b != 0:
+            return None
 
         assert len(data) == 1
         data = data[0]

@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 int test() {
 	return 1;
 }
@@ -7,5 +9,6 @@ int test2(int a) {
 }
 
 int main() {
-	return test() + test2(2);
+    printf("test\n");
+	return test() + test2(2) ;
 }

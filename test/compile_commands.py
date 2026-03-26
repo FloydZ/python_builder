@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """ test compiler_commands.json"""
-from python_builder.compile_commands import CompileCommands
+from build_system_parser.compile_commands import CompileCommands
 
 
 def test_compile_commands_runner():
@@ -22,3 +22,8 @@ def test_compile_commands_build():
     assert t
     assert t.build()
     assert c.build(t)
+
+
+if __name__ == "__main__":
+    test_compile_commands_runner()
+    test_compile_commands_build()

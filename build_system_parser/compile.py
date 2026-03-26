@@ -4,8 +4,6 @@ import logging
 import os.path
 from subprocess import Popen, PIPE, STDOUT
 from typing import Union
-from os import listdir
-from os.path import isfile, join
 import re
 import tempfile
 from pathlib import Path
@@ -35,7 +33,7 @@ class Compile(Builder):
         if compile_cmd:
             Compile.CMD = compile_cmd
 
-        # that's the full path to the source_file 
+        # that's the full path to the source_file
         self.__source_file = Path(os.path.abspath(source_file))
         # that's only the name of the source_file
         self.__name = self.__source_file.name
@@ -79,12 +77,14 @@ class Compile(Builder):
 
 
         :param target: to build
-        :param add_flags:
-        :param flags
+        :param add_flags: additional compiler flags to append
+        :param flags: compiler flags to replace the existing ones
         """
         assert isinstance(target, Target)
         if self._error:
             return False
+        # Note: The add_flags and flags parameters are defined for API compatibility
+        # but are not currently used in this implementation
 
         return True
 
@@ -93,20 +93,20 @@ class Compile(Builder):
             returns the version of the installed/given `cmake`
         """
         cmd = [Compile.CMD, "--version"]
-        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-        p.wait()
-        assert p.stdout
-        data = p.stdout.readlines()
-        data = clean_lines(data)
-        if p.returncode != 0:
-            logging.error(cmd, "not available: {0}".format("\n".join(data)))
-            return None
+        with Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT) as p:
+            p.wait()
+            assert p.stdout
+            data = p.stdout.readlines()
+            data = clean_lines(data)
+            if p.returncode != 0:
+                logging.error(cmd, "not available: {0}".format("\n".join(data)))
+                return None
 
-        assert len(data) > 1
-        data = data[0]
-        ver = re.findall(r'\d.\d', data)
-        assert len(ver) == 1
-        return ver[0]
+            assert len(data) > 1
+            data = data[0]
+            ver = re.findall(r'\d.\d', data)
+            assert len(ver) == 1
+            return ver[0]
 
     def __str__(self):
         return "compile runner"

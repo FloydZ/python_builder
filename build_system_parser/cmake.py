@@ -61,7 +61,7 @@ class CMake(Builder):
             t = tempfile.gettempdir()
             self.__build_path = Path(t)
 
-        with open(cmake_file, "r") as f:
+        with open(cmake_file, "r", encoding="utf-8") as f:
             cmake_data = f.read()
 
         self.__internal_cmakefile = parsing.parse(cmake_data)
@@ -72,7 +72,7 @@ class CMake(Builder):
                     t = Target(name, os.path.join(self.__build_path, name), [],
                                self.build, self.run)
                     self._targets.append(t)
-            except Exception as e:
+            except (AttributeError, IndexError, TypeError) as e:
                 self.__error = True
                 logging.error("could not parse %s %s", cmake_file, e)
                 return
@@ -85,7 +85,7 @@ class CMake(Builder):
             if p.returncode != 0:
                 self.__error = True
                 assert p.stdout
-                logging.error("couldn't create the cmake project: %d", p.stdout.read())
+                logging.error("couldn't create the cmake project: %s", p.stdout.read())
                 return
 
     def available(self) -> bool:

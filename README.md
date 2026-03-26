@@ -1,4 +1,4 @@
-Python_Builder:
+Build System Parser:
 ==============
 
 This library wraps common build systems and let you control
@@ -14,7 +14,7 @@ Installation:
 ===========
 
 ```shell
-pip install python_builder
+pip install build_system_parser
 ```
 
 A `shell.nix` is provided for local development.
@@ -26,7 +26,7 @@ You can either use the function `find_build_system(path)` to detect
 the build system automatically like:
 ```python
 # import this package
-from python_builder import find_build_system
+from build_system_parser import find_build_system
 
 # parse the build system
 B = find_build_system("path/to/Makefile")
@@ -49,7 +49,7 @@ B.run(target)
 Alternatively you can use a specific build system wrapper directly:
 ```python
 # available builders: Ninja, Make, CMake, Compile_Commands, Cargo
-from python_builder import Ninja
+from build_system_parser import Ninja
 B = Ninja("path/to/build.ninja")
 B.targets()
 B.build(B.target("simple"))
@@ -57,7 +57,7 @@ B.build(B.target("simple"))
 
 Additionally, you can pass specific compiler flags to the builder:
 ```python
-from python_builder import Make
+from build_system_parser import Make
 B = Make("path/to/Makefile")
 t = B.target("name_of_target")
 B.build(t, "-O3 -march=native -fno-inline")

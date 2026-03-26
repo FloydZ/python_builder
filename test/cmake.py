@@ -2,7 +2,7 @@
 """ tests for cmake.py """
 
 import os
-from python_builder.cmake import CMake
+from build_system_parser.cmake import CMake
 
 
 def test_cmake_runner():
@@ -43,3 +43,4 @@ def test_all():
 if __name__ == "__main__":
     test_cmake_runner()
     test_cmake_build()
+    test_all()

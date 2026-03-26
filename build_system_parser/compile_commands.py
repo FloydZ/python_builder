@@ -31,6 +31,7 @@ class CompileCommands(Builder):
             as an argument a random temp path will be chosen
         """
         super().__init__()
+        self.__error = False
 
         # that's the full path to the makefile (including the name of the makefile)
         # self.__file = file if isinstance(file, Path) else Path(os.path.abspath(file))
@@ -44,8 +45,8 @@ class CompileCommands(Builder):
 
         data = {}
         try:
-            with json.load(open(file)) as j:
-                data = j
+            with open(file) as f:
+                data = json.load(f)
         except Exception as e:
             logging.error(e)
             self.__error = True
